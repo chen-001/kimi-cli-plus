@@ -49,7 +49,8 @@ class TurnEnd(BaseModel):
     If the turn is interrupted, this event may be omitted.
     """
 
-    pass
+    stats_text: str | None = None
+    """Optional statistics text to display at the end of the turn."""
 
 
 class StepBegin(BaseModel):

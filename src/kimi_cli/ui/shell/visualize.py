@@ -568,7 +568,19 @@ class _LiveView:
                     )
                 )
             case TurnEnd():
-                pass
+                # 确保所有内容都刷新后再显示统计面板
+                self.flush_content()
+                if msg.stats_text:
+                    console.print()
+                    console.print(
+                        Panel(
+                            Text(msg.stats_text, style="dim"),
+                            title="[dim]📊 本次回答统计[/dim]",
+                            border_style="dim",
+                            padding=(0, 1)
+                        )
+                    )
+                    console.print()
             case CompactionBegin():
                 self._compacting_spinner = Spinner("balloon", "Compacting...")
                 self.refresh_soon()

@@ -5,6 +5,17 @@ build/
 dist/
 wheels/
 *.egg-info
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+*.log
+*.swp
+*.swo
+*~
 
 # Virtual environments
 .venv

@@ -32,8 +32,7 @@ def test_default_config_dump():
                 "reserved_context_size": 50000,
             },
             "services": {"moonshot_search": None, "moonshot_fetch": None},
-            "mcp": {"client": {"tool_call_timeout_ms": 60000}},
-        }
+            "mcp": {"client": {"tool_call_timeout_ms": 60000}}, "plugin_config": {"enable_diff_view": True}}
     )
 
 

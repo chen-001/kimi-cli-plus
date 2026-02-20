@@ -139,6 +139,63 @@ Identify the skills that are likely to be useful for the tasks you are currently
 
 Only read skill details when needed to conserve the context window.
 
+# AskUser Tool (MUST USE)
+
+**CRITICAL: When you have multiple options for the user to choose from, you MUST use the `AskUser` tool instead of listing options in your response.**
+
+## When to use AskUser (MANDATORY)
+
+You MUST call the `AskUser` tool in these situations:
+
+1. **User asks you to provide options** - e.g., "give me some options", "what choices do I have", "I don't know which one to pick"
+2. **Multiple viable approaches** - When there are 2+ ways to accomplish a task and you need user to decide
+3. **User instruction is unclear** - Need clarification before proceeding
+4. **Final confirmation required** - Before executing critical/dangerous operations
+5. **Need additional information** - User must provide specific input to continue
+
+## When NOT to use AskUser
+
+- Do NOT use when you can make a reasonable decision yourself
+- Do NOT use for simple acknowledgments or confirmations you can handle
+- Do NOT list options in your text response - always use the tool
+
+## How to use
+
+```json
+{
+  "question": "Your question here",
+  "options": ["Option A", "Option B", "Option C"],
+  "require_input": false
+}
+```
+
+- `question`: The question or prompt for the user
+- `options`: Array of choices (REQUIRED when providing options)
+- `require_input`: Set to `false` when providing options (user just selects)
+
+## Examples
+
+**User says**: "I want to create a file but don't know what to name it, give me some options"
+
+**WRONG** - Listing options in response:
+```
+Here are some options:
+- file1.txt
+- file2.txt
+Which one do you want?
+```
+
+**CORRECT** - Using AskUser tool:
+```json
+{
+  "question": "What would you like to name the file?",
+  "options": ["file1.txt", "file2.txt", "data.txt"],
+  "require_input": false
+}
+```
+
+**Remember**: The user explicitly said "give me some options" - this is a clear signal to use the AskUser tool with options.
+
 # Ultimate Reminders
 
 At any time, you should be HELPFUL and POLITE, CONCISE and ACCURATE, PATIENT and THOROUGH.
@@ -200,6 +257,71 @@ Examples:
                         },
                     },
                     "required": ["description", "subagent_name", "prompt"],
+                    "type": "object",
+                },
+            ),
+            Tool(
+                name="AskUser",
+                description="""\
+向用户提问或请求选择。即使在YOLO模式下也会暂停等待用户回复。
+
+当用户指令不够明确、需要补充信息、或需要用户做选择时使用此工具。
+
+**参数说明：**
+- `question` (string, required): 要问用户的问题
+- `options` (string[], optional): 可选的选项列表。提供后用户必须从选项中选择
+- `require_input` (boolean, optional): 是否需要用户输入文字。默认 true
+
+**使用示例：**
+
+1. 简单询问（自由输入）：
+```json
+{
+  "question": "请指定要优化的文件路径"
+}
+```
+
+2. 多选项选择：
+```json
+{
+  "question": "请选择优化方向",
+  "options": ["提速", "省内存", "增强可读性"]
+}
+```
+
+3. 多选项选择（仅需确认）：
+```json
+{
+  "question": "确认删除此文件？",
+  "options": ["确认删除", "取消"],
+  "require_input": false
+}
+```
+
+**注意事项：**
+- 如果用户取消回答，会返回 `cancelled=true`，当前任务应该停止
+- 如果提供了 `options`，用户必须从选项中选择
+- 如果 `require_input=false`，必须提供 `options`，否则工具无法正常工作
+""",
+                parameters={
+                    "description": "AskUser工具的参数。",
+                    "properties": {
+                        "question": {"description": "要问用户的问题", "type": "string"},
+                        "options": {
+                            "anyOf": [
+                                {"items": {"type": "string"}, "type": "array"},
+                                {"type": "null"},
+                            ],
+                            "default": None,
+                            "description": "选项列表。如果提供，用户必须从选项中选择；如果不提供，用户可以自由输入",
+                        },
+                        "require_input": {
+                            "default": True,
+                            "description": "是否需要用户输入。如果为false且提供了options，则只需用户确认即可",
+                            "type": "boolean",
+                        },
+                    },
+                    "required": ["question"],
                     "type": "object",
                 },
             ),
@@ -773,6 +895,63 @@ Identify the skills that are likely to be useful for the tasks you are currently
 
 Only read skill details when needed to conserve the context window.
 
+# AskUser Tool (MUST USE)
+
+**CRITICAL: When you have multiple options for the user to choose from, you MUST use the `AskUser` tool instead of listing options in your response.**
+
+## When to use AskUser (MANDATORY)
+
+You MUST call the `AskUser` tool in these situations:
+
+1. **User asks you to provide options** - e.g., "give me some options", "what choices do I have", "I don't know which one to pick"
+2. **Multiple viable approaches** - When there are 2+ ways to accomplish a task and you need user to decide
+3. **User instruction is unclear** - Need clarification before proceeding
+4. **Final confirmation required** - Before executing critical/dangerous operations
+5. **Need additional information** - User must provide specific input to continue
+
+## When NOT to use AskUser
+
+- Do NOT use when you can make a reasonable decision yourself
+- Do NOT use for simple acknowledgments or confirmations you can handle
+- Do NOT list options in your text response - always use the tool
+
+## How to use
+
+```json
+{
+  "question": "Your question here",
+  "options": ["Option A", "Option B", "Option C"],
+  "require_input": false
+}
+```
+
+- `question`: The question or prompt for the user
+- `options`: Array of choices (REQUIRED when providing options)
+- `require_input`: Set to `false` when providing options (user just selects)
+
+## Examples
+
+**User says**: "I want to create a file but don't know what to name it, give me some options"
+
+**WRONG** - Listing options in response:
+```
+Here are some options:
+- file1.txt
+- file2.txt
+Which one do you want?
+```
+
+**CORRECT** - Using AskUser tool:
+```json
+{
+  "question": "What would you like to name the file?",
+  "options": ["file1.txt", "file2.txt", "data.txt"],
+  "require_input": false
+}
+```
+
+**Remember**: The user explicitly said "give me some options" - this is a clear signal to use the AskUser tool with options.
+
 # Ultimate Reminders
 
 At any time, you should be HELPFUL and POLITE, CONCISE and ACCURATE, PATIENT and THOROUGH.
@@ -785,6 +964,7 @@ At any time, you should be HELPFUL and POLITE, CONCISE and ACCURATE, PATIENT and
 - ALWAYS, keep it stupidly simple. Do not overcomplicate things.\
 """,
                 [
+                    "AskUser",
                     "Shell",
                     "ReadFile",
                     "ReadMediaFile",

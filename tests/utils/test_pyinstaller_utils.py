@@ -68,10 +68,6 @@ def test_pyinstaller_datas():
             ("src/kimi_cli/agents/default/sub.yaml", "kimi_cli/agents/default"),
             ("src/kimi_cli/agents/default/system.md", "kimi_cli/agents/default"),
             ("src/kimi_cli/agents/okabe/agent.yaml", "kimi_cli/agents/okabe"),
-            (
-                f"src/kimi_cli/deps/bin/{'rg.exe' if platform.system() == 'Windows' else 'rg'}",
-                "kimi_cli/deps/bin",
-            ),
             ("src/kimi_cli/prompts/compact.md", "kimi_cli/prompts"),
             ("src/kimi_cli/prompts/init.md", "kimi_cli/prompts"),
             (
@@ -82,6 +78,7 @@ def test_pyinstaller_datas():
                 "src/kimi_cli/skills/skill-creator/SKILL.md",
                 "kimi_cli/skills/skill-creator",
             ),
+            ("src/kimi_cli/tools/ask_user/ask_user.md", "kimi_cli/tools/ask_user"),
             (
                 "src/kimi_cli/tools/dmail/dmail.md",
                 "kimi_cli/tools/dmail",
@@ -140,6 +137,7 @@ def test_pyinstaller_hiddenimports():
     assert sorted(hiddenimports) == snapshot(
         [
             "kimi_cli.tools",
+            "kimi_cli.tools.ask_user",
             "kimi_cli.tools.display",
             "kimi_cli.tools.dmail",
             "kimi_cli.tools.file",

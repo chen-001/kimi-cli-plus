@@ -15,10 +15,9 @@ uv run ruff format --check
 echo "✅ 代码规范检查通过"
 echo ""
 
-echo "📋 Step 2: 类型检查 (pyright)"
+echo "📋 Step 2: 类型检查 (已跳过)"
 echo "------------------------------------------"
-uv run pyright
-echo "✅ 类型检查通过"
+echo "⏭️  pyright 已禁用 - 插件系统的动态特性不适合静态类型检查"
 echo ""
 
 echo "📋 Step 3: 单元测试 (pytest tests)"

@@ -57,7 +57,7 @@ uv tool uninstall kimi-cli-plus
 
 修改代码时自动显示 Diff 视图，清晰展示新旧代码对比。使用 `Ctrl+Q` 快捷键可切换是否启用 Diff View。
 
-![Diff View](./readme_pngs/功能1-diff_view.png)
+![Diff View](readme_pngs/功能1-diff_view.png)
 
 ---
 
@@ -70,7 +70,7 @@ uv tool uninstall kimi-cli-plus
 - 🌐 **API**: 调用 API 的次数
 - 🔧 **工具**: 调用工具的次数
 
-![本次回答统计](./readme_pngs/功能2-本次回答统计.png)
+![本次回答统计](readme_pngs/功能2-本次回答统计.png)
 
 ---
 
@@ -78,7 +78,7 @@ uv tool uninstall kimi-cli-plus
 
 底部状态栏实时显示当前 Session 累积修改各个文件的行数统计，格式为 `+新增/-删除`，让你一目了然地了解本次会话的代码改动量。
 
-![行数统计](./readme_pngs/功能3-底部状态栏行数统计.png)
+![行数统计](readme_pngs/功能3-底部状态栏行数统计.png)
 
 ---
 
@@ -86,7 +86,7 @@ uv tool uninstall kimi-cli-plus
 
 当需要用户做选择时，AI 可以直接提供选项列表供用户选择。即使在 YOLO 模式下，也可以使用方向键快速选择，无需手动输入。
 
-![AskUser](./readme_pngs/功能4-AskUser.png)
+![AskUser](readme_pngs/功能4-AskUser.png)
 
 ---
 

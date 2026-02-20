@@ -114,7 +114,6 @@ class ApprovalPatch(PatchBase):
                 display=request.display,
             )
             # 标记为inquiry（通过display传递标记）
-            from kimi_cli.tools.display import BriefDisplayBlock
             wire_request._is_inquiry = True  # 内部标记
             
             wire_send(wire_request)

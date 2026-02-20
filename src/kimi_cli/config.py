@@ -141,6 +141,14 @@ class MCPConfig(BaseModel):
     )
 
 
+class PluginConfig(BaseModel):
+    """Plugin configuration."""
+
+    enable_diff_view: bool = Field(
+        default=True, description="Enable diff view after file modifications"
+    )
+
+
 class Config(BaseModel):
     """Main configuration structure."""
 
@@ -159,6 +167,9 @@ class Config(BaseModel):
     loop_control: LoopControl = Field(default_factory=LoopControl, description="Agent loop control")
     services: Services = Field(default_factory=Services, description="Services configuration")
     mcp: MCPConfig = Field(default_factory=MCPConfig, description="MCP configuration")
+    plugin_config: PluginConfig = Field(
+        default_factory=PluginConfig, description="Plugin configuration"
+    )
 
     @model_validator(mode="after")
     def validate_model(self) -> Self:

@@ -6,13 +6,13 @@ AskUser工具 - 让AI在YOLO模式下也能与用户交互
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 try:
     from typing import override
 except ImportError:
     from typing_extensions import override
 
-from kosong.tooling import CallableTool2, ToolReturnValue
+from kosong.tooling import BriefDisplayBlock, CallableTool2, ToolReturnValue
 from pydantic import BaseModel, Field
 
 
@@ -95,8 +95,6 @@ class AskUser(CallableTool2[AskUserParams]):
         这里只是返回一个标记，让系统知道需要处理询问。
         """
         # 创建显示内容
-        from kimi_cli.tools.display import BriefDisplayBlock
-        
         display_blocks = []
         
         # 添加问题
@@ -118,6 +116,7 @@ class AskUser(CallableTool2[AskUserParams]):
                 action="ask_user_inquiry",
                 description=params.question,
                 display=display_blocks,
+                options=params.options,
             )
             
             if not approved:

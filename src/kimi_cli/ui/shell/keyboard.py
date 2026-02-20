@@ -18,6 +18,7 @@ class KeyEvent(Enum):
     ENTER = auto()
     ESCAPE = auto()
     TAB = auto()
+    CTRL_Q = auto()
     CTRL_E = auto()
 
 
@@ -110,7 +111,8 @@ def _listen_for_keyboard_unix(
     fd = sys.stdin.fileno()
     oldterm = termios.tcgetattr(fd)
     rawattr = termios.tcgetattr(fd)
-    rawattr[3] = rawattr[3] & ~termios.ICANON & ~termios.ECHO
+    # Disable canonical mode, echo, and IXON (so Ctrl+Q/Ctrl+S are not captured for flow control)
+    rawattr[3] = rawattr[3] & ~termios.ICANON & ~termios.ECHO & ~termios.IXON
     rawattr[6][termios.VMIN] = 0
     rawattr[6][termios.VTIME] = 0
     raw_enabled = False
@@ -177,6 +179,8 @@ def _listen_for_keyboard_unix(
                 emit(KeyEvent.ENTER)
             elif c == b"\t":
                 emit(KeyEvent.TAB)
+            elif c == b"\x11":  # Ctrl+Q
+                emit(KeyEvent.CTRL_Q)
             elif c == b"\x05":  # Ctrl+E
                 emit(KeyEvent.CTRL_E)
     finally:
@@ -233,6 +237,8 @@ def _listen_for_keyboard_windows(
                 emit(KeyEvent.ENTER)
             elif c == b"\t":
                 emit(KeyEvent.TAB)
+            elif c == b"\x11":  # Ctrl+Q
+                emit(KeyEvent.CTRL_Q)
             elif c == b"\x05":  # Ctrl+E
                 emit(KeyEvent.CTRL_E)
         else:

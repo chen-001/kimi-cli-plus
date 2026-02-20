@@ -55,24 +55,27 @@ def apply_all_patches():
     except Exception as e:
         warnings.warn(f"[Plugin] mod_tracker patch failed: {e}", RuntimeWarning)
     
-    try:
-        from kimi_cli.plugins.patches import approval_patch as ap_module
-        if hasattr(ap_module, 'patch') and callable(ap_module.patch):
-            if ap_module.patch():
-                _applied_patches.append("approval")
-                print("[Plugin] ✓ approval patch applied")
-    except Exception as e:
-        warnings.warn(f"[Plugin] approval patch failed: {e}", RuntimeWarning)
+    # NOTE: approval_patch disabled - using standard approval system instead
+    # The standard approval.py now supports INQUIRY_ACTIONS for AskUser tool
+    # try:
+    #     from kimi_cli.plugins.patches import approval_patch as ap_module
+    #     if hasattr(ap_module, 'patch') and callable(ap_module.patch):
+    #         if ap_module.patch():
+    #             _applied_patches.append("approval")
+    #             print("[Plugin] ✓ approval patch applied")
+    # except Exception as e:
+    #     warnings.warn(f"[Plugin] approval patch failed: {e}", RuntimeWarning)
     
-    try:
-        # 功能2补充: 自动注册 AskUser 工具
-        from kimi_cli.plugins.patches import askuser_tool_patch as aut_module
-        if hasattr(aut_module, 'patch') and callable(aut_module.patch):
-            if aut_module.patch():
-                _applied_patches.append("askuser_tool")
-                print("[Plugin] ✓ askuser tool patch applied")
-    except Exception as e:
-        warnings.warn(f"[Plugin] askuser tool patch failed: {e}", RuntimeWarning)
+    # NOTE: askuser_tool_patch disabled - AskUser tool is now loaded via agent.yaml
+    # try:
+    #     # 功能2补充: 自动注册 AskUser 工具
+    #     from kimi_cli.plugins.patches import askuser_tool_patch as aut_module
+    #     if hasattr(aut_module, 'patch') and callable(aut_module.patch):
+    #         if aut_module.patch():
+    #             _applied_patches.append("askuser_tool")
+    #             print("[Plugin] ✓ askuser tool patch applied")
+    # except Exception as e:
+    #     warnings.warn(f"[Plugin] askuser tool patch failed: {e}", RuntimeWarning)
     
     if _applied_patches:
         print("[Plugin] All patches applied: {}".format(_applied_patches))

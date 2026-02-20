@@ -82,6 +82,8 @@ def build_diff_blocks(
                 path=path,
                 old_text="\n".join(old_lines[i1:i2]),
                 new_text="\n".join(new_lines[j1:j2]),
+                old_start_line=i1 + 1,  # 转换为 1-based 行号
+                new_start_line=j1 + 1,  # 转换为 1-based 行号
             )
         )
     return blocks

@@ -53,6 +53,7 @@ _KEYBOARD_SHORTCUTS = [
     ("Ctrl-X", "Toggle agent/shell mode"),
     ("Ctrl-J / Alt-Enter", "Insert newline"),
     ("Ctrl-V", "Paste (supports images)"),
+    ("Ctrl-Q", "Toggle diff view"),
     ("Ctrl-D", "Exit"),
     ("Ctrl-C", "Interrupt"),
 ]

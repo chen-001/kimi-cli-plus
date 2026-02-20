@@ -20,6 +20,7 @@ from rich.text import Text
 from kimi_cli.tools import extract_key_argument
 from kimi_cli.ui.shell.console import console
 from kimi_cli.ui.shell.keyboard import KeyboardListener, KeyEvent
+from kimi_cli.ui.shell.diff_view_state import is_diff_view_enabled, toggle_diff_view
 from kimi_cli.utils.aioqueue import QueueShutDown
 from kimi_cli.utils.diff import format_unified_diff
 from kimi_cli.utils.logging import logger
@@ -36,6 +37,7 @@ from kimi_cli.wire.types import (
     CompactionEnd,
     ContentPart,
     DiffDisplayBlock,
+    InquiryRequest,
     ShellDisplayBlock,
     StatusUpdate,
     StepBegin,
@@ -263,11 +265,27 @@ class _ApprovalContentBlock(NamedTuple):
 class _ApprovalRequestPanel:
     def __init__(self, request: ApprovalRequest):
         self.request = request
-        self.options: list[tuple[str, ApprovalResponse.Kind]] = [
-            ("Approve once", "approve"),
-            ("Approve for this session", "approve_for_session"),
-            ("Reject, tell Kimi what to do instead", "reject"),
-        ]
+        
+        # Inquiry mode: user choice/input instead of approval
+        if request.is_inquiry:
+            # For inquiry with options, show the options
+            if request.options:
+                self.options: list[tuple[str, ApprovalResponse.Kind]] = [
+                    (opt, "approve") for opt in request.options
+                ]
+                # Add cancel option
+                self.options.append(("(取消)", "reject"))
+            else:
+                self.options: list[tuple[str, ApprovalResponse.Kind]] = [
+                    ("Continue", "approve"),
+                    ("Cancel", "reject"),
+                ]
+        else:
+            self.options: list[tuple[str, ApprovalResponse.Kind]] = [
+                ("Approve once", "approve"),
+                ("Approve for this session", "approve_for_session"),
+                ("Reject, tell Kimi what to do instead", "reject"),
+            ]
         self.selected_index = 0
 
         # Pre-render all content blocks with line counts
@@ -326,13 +344,18 @@ class _ApprovalRequestPanel:
 
     def render(self) -> RenderableType:
         """Render the approval menu as a panel."""
-        content_lines: list[RenderableType] = [
-            Text.from_markup(
+        # Different header for inquiry vs approval
+        if self.request.is_inquiry:
+            header_text = (
+                f"[cyan]❓ {escape(self.request.sender)} is asking:[/cyan]"
+            )
+        else:
+            header_text = (
                 "[yellow]⚠ "
                 f"{escape(self.request.sender)} is requesting approval to "
                 f"{escape(self.request.action)}:[/yellow]"
             )
-        ]
+        content_lines: list[RenderableType] = [Text.from_markup(header_text)]
         content_lines.append(Text(""))
 
         # Render content with line budget
@@ -389,6 +412,66 @@ class _ApprovalRequestPanel:
     def get_selected_response(self) -> ApprovalResponse.Kind:
         """Get the approval response based on selected option."""
         return self.options[self.selected_index][1]
+
+
+class _InquiryRequestPanel:
+    """Panel for handling user inquiry (choice/input)."""
+
+    def __init__(self, request: InquiryRequest):
+        self.request = request
+        self.options: list[str] = []
+        self.selected_index = 0
+
+        # Build options list
+        if request.options:
+            self.options = list(request.options)
+        if request.allow_custom or not request.options:
+            self.options.append("(自定义输入...)")
+
+    def render(self) -> RenderableType:
+        """Render the inquiry panel."""
+        content_lines: list[RenderableType] = [
+            Text.from_markup(
+                f"[cyan]❓ {escape(self.request.sender)} 想询问你：[/cyan]"
+            )
+        ]
+        content_lines.append(Text(""))
+
+        # Show question
+        content_lines.append(Text(self.request.question))
+        content_lines.append(Text(""))
+
+        # Show options
+        if len(self.options) > 1:
+            content_lines.append(Text("请选择：", style="bold"))
+            for i, option in enumerate(self.options):
+                if i == self.selected_index:
+                    content_lines.append(Text(f"  → {option}", style="cyan"))
+                else:
+                    content_lines.append(Text(f"    {option}", style="grey50"))
+        else:
+            # Single option (custom input only)
+            content_lines.append(Text("按 Enter 输入回答...", style="dim"))
+
+        return Padding(Group(*content_lines), 1)
+
+    def move_up(self):
+        """Move selection up."""
+        if len(self.options) > 1:
+            self.selected_index = (self.selected_index - 1) % len(self.options)
+
+    def move_down(self):
+        """Move selection down."""
+        if len(self.options) > 1:
+            self.selected_index = (self.selected_index + 1) % len(self.options)
+
+    def get_selected_option(self) -> str:
+        """Get the currently selected option."""
+        return self.options[self.selected_index]
+
+    def is_custom_input(self) -> bool:
+        """Check if the selected option is custom input."""
+        return self.selected_index == len(self.options) - 1 and "(自定义输入...)" in self.options
 
 
 def _show_approval_in_pager(panel: _ApprovalRequestPanel) -> None:
@@ -461,6 +544,11 @@ class _LiveView:
         """
         self._current_approval_request_panel: _ApprovalRequestPanel | None = None
         self._reject_all_following = False
+
+        self._inquiry_request_queue = deque[InquiryRequest]()
+        """Queue for inquiry requests (user choice/input)."""
+        self._current_inquiry_panel: _InquiryRequestPanel | None = None
+
         self._status_block = _StatusBlock(initial_status)
 
         self._need_recompose = False
@@ -481,6 +569,22 @@ class _LiveView:
         ) as live:
 
             async def keyboard_handler(listener: KeyboardListener, event: KeyEvent) -> None:
+                # Handle Ctrl+Q - toggle diff view
+                if event == KeyEvent.CTRL_Q:
+                    new_state = toggle_diff_view()
+                    status_text = "启用" if new_state else "禁用"
+                    # Stop Live to print the message, then resume
+                    await listener.pause()
+                    live.stop()
+                    try:
+                        console.print(f"\n[dim]📋 Diff view 已{status_text} (Ctrl+Q 切换)[/dim]")
+                    finally:
+                        self._reset_live_shape(live)
+                        live.start()
+                        live.update(self.compose(), refresh=True)
+                        await listener.resume()
+                    return
+
                 # Handle Ctrl+E specially - pause Live while the pager is active
                 if event == KeyEvent.CTRL_E:
                     if (
@@ -538,7 +642,9 @@ class _LiveView:
                 blocks.append(self._current_content_block.compose())
             for tool_call in self._tool_call_blocks.values():
                 blocks.append(tool_call.compose())
-        if self._current_approval_request_panel:
+        if self._current_inquiry_panel:
+            blocks.append(self._current_inquiry_panel.render())
+        elif self._current_approval_request_panel:
             blocks.append(self._current_approval_request_panel.render())
         blocks.append(self._status_block.render())
         return Group(*blocks)
@@ -604,6 +710,8 @@ class _LiveView:
                 self.handle_subagent_event(msg)
             case ApprovalRequest():
                 self.request_approval(msg)
+            case InquiryRequest():
+                self.request_inquiry(msg)
             case ToolCallRequest():
                 logger.warning("Unexpected ToolCallRequest in shell UI: {msg}", msg=msg)
 
@@ -611,6 +719,11 @@ class _LiveView:
         # handle ESC key to cancel the run
         if event == KeyEvent.ESCAPE and self._cancel_event is not None:
             self._cancel_event.set()
+            return
+
+        # Handle inquiry mode
+        if self._current_inquiry_panel:
+            self._handle_inquiry_keyboard(event)
             return
 
         if not self._current_approval_request_panel:
@@ -626,17 +739,31 @@ class _LiveView:
                 self.refresh_soon()
             case KeyEvent.ENTER:
                 resp = self._current_approval_request_panel.get_selected_response()
-                self._current_approval_request_panel.request.resolve(resp)
+                request = self._current_approval_request_panel.request
+                
+                # For inquiry requests with options, pass the selected option as user_response
+                if request.is_inquiry and request.options:
+                    selected_text = self._current_approval_request_panel.options[
+                        self._current_approval_request_panel.selected_index
+                    ][0]
+                    # Remove the "(取消)" suffix if present
+                    if selected_text == "(取消)":
+                        request.resolve("reject")
+                    else:
+                        request.resolve("approve", user_response=selected_text)
+                else:
+                    request.resolve(resp)
+                    
                 if resp == "approve_for_session":
                     to_remove_from_queue: list[ApprovalRequest] = []
-                    for request in self._approval_request_queue:
+                    for req in self._approval_request_queue:
                         # approve all queued requests with the same action
-                        if request.action == self._current_approval_request_panel.request.action:
-                            request.resolve("approve_for_session")
-                            to_remove_from_queue.append(request)
-                    for request in to_remove_from_queue:
-                        self._approval_request_queue.remove(request)
-                elif resp == "reject":
+                        if req.action == request.action:
+                            req.resolve("approve_for_session")
+                            to_remove_from_queue.append(req)
+                    for req in to_remove_from_queue:
+                        self._approval_request_queue.remove(req)
+                elif resp == "reject" and not request.is_inquiry:
                     # one rejection should stop the step immediately
                     while self._approval_request_queue:
                         self._approval_request_queue.popleft().resolve("reject")
@@ -757,6 +884,67 @@ class _LiveView:
             self._current_approval_request_panel = _ApprovalRequestPanel(request)
             self.refresh_soon()
             break
+
+    def request_inquiry(self, request: InquiryRequest) -> None:
+        """Handle an inquiry request (user choice/input)."""
+        self._inquiry_request_queue.append(request)
+
+        if self._current_inquiry_panel is None and self._current_approval_request_panel is None:
+            console.bell()
+            self.show_next_inquiry()
+
+    def show_next_inquiry(self) -> None:
+        """Show the next inquiry request from the queue."""
+        if not self._inquiry_request_queue:
+            if self._current_inquiry_panel is not None:
+                self._current_inquiry_panel = None
+                self.refresh_soon()
+            # Check if there are pending approval requests
+            if self._approval_request_queue:
+                self.show_next_approval_request()
+            return
+
+        while self._inquiry_request_queue:
+            request = self._inquiry_request_queue.popleft()
+            if request.resolved:
+                continue
+            self._current_inquiry_panel = _InquiryRequestPanel(request)
+            self.refresh_soon()
+            break
+
+    def _handle_inquiry_keyboard(self, event: KeyEvent) -> None:
+        """Handle keyboard events for inquiry mode."""
+        if not self._current_inquiry_panel:
+            return
+
+        match event:
+            case KeyEvent.UP:
+                self._current_inquiry_panel.move_up()
+                self.refresh_soon()
+            case KeyEvent.DOWN:
+                self._current_inquiry_panel.move_down()
+                self.refresh_soon()
+            case KeyEvent.ENTER:
+                selected = self._current_inquiry_panel.get_selected_option()
+                request = self._current_inquiry_panel.request
+
+                if self._current_inquiry_panel.is_custom_input():
+                    # For custom input, we need to get text input from user
+                    # For now, resolve with empty string and let the tool handle it
+                    # TODO: Implement proper text input handling
+                    request.resolve("")
+                else:
+                    # User selected an option
+                    request.resolve(selected)
+
+                self._current_inquiry_panel = None
+                self.show_next_inquiry()
+            case KeyEvent.ESCAPE:
+                # Cancel the inquiry
+                if self._current_inquiry_panel:
+                    self._current_inquiry_panel.request.resolve("")
+                    self._current_inquiry_panel = None
+                    self.show_next_inquiry()
 
     def handle_subagent_event(self, event: SubagentEvent) -> None:
         block = self._tool_call_blocks.get(event.task_tool_call_id)

@@ -45,6 +45,7 @@ from kimi_cli.llm import ModelCapability
 from kimi_cli.share import get_share_dir
 from kimi_cli.soul import StatusSnapshot
 from kimi_cli.ui.shell.console import console
+from kimi_cli.ui.shell.diff_view_state import toggle_diff_view
 from kimi_cli.utils.clipboard import grab_image_from_clipboard, is_clipboard_available
 from kimi_cli.utils.logging import logger
 from kimi_cli.utils.media_tags import wrap_media_part
@@ -700,6 +701,13 @@ class CustomPromptSession:
             self._apply_mode(event)
             # Redraw UI
             event.app.invalidate()
+
+        @_kb.add("c-q", eager=True)
+        def _(event: KeyPressEvent) -> None:
+            """Toggle diff view enabled/disabled."""
+            new_state = toggle_diff_view()
+            status_text = "启用" if new_state else "禁用"
+            console.print(f"\n[dim]📋 Diff view 已{status_text} (Ctrl+Q 切换)[/dim]")
 
         @_kb.add("escape", "enter", eager=True)
         @_kb.add("c-j", eager=True)

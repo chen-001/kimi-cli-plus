@@ -316,6 +316,7 @@ class KimiSoul:
                     sender=request.sender,
                     tool_call_id=request.tool_call_id,
                     display=request.display,
+                    options=request.options,
                 )
                 wire_send(wire_request)
                 # We wait for the request to be resolved over the wire, which means that,
@@ -323,7 +324,12 @@ class KimiSoul:
                 # at a time. However, be aware that subagents (which have their own souls) may
                 # also send approval requests to the root wire.
                 resp = await wire_request.wait()
-                self._approval.resolve_request(request.id, resp)
+                # Pass user_response for inquiry requests
+                self._approval.resolve_request(
+                    request.id, 
+                    resp, 
+                    user_response=wire_request.user_response
+                )
                 wire_send(ApprovalResponse(request_id=request.id, response=resp))
 
         step_no = 0

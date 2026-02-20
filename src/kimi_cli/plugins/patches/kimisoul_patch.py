@@ -209,10 +209,6 @@ class KimiSoulPatch(PatchBase):
                 ):
                     stats.first_token_time = time.time()
 
-                    # 记录token使用情况（从StatusUpdate中）
-                    if isinstance(msg, StatusUpdate) and msg.token_usage:
-                        KimiSoulPatch.record_token_usage(msg.token_usage)
-
                 return original_wire_send(msg)
 
             # 临时替换两个地方的 wire_send
@@ -224,6 +220,11 @@ class KimiSoulPatch(PatchBase):
             try:
                 # 调用原始 _step 方法
                 result = await original_step(self)
+
+                # 在恢复 wire_send 之前，手动记录 token usage
+                # 因为 _step 内部会在最后发送 StatusUpdate，但那时 wire_send 已经被恢复了
+                if stats and result and hasattr(result, 'usage') and result.usage:
+                    KimiSoulPatch.record_token_usage(result.usage)
 
                 # 恢复 wire_send
                 kimi_cli.soul.wire_send = original_wire_send

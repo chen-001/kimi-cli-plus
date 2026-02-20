@@ -118,11 +118,11 @@ class Approval:
         """
         Get the user's response for the last inquiry request.
         Should be called after request() returns True for an inquiry.
-        
+
         Returns:
             str | None: The user's selected option or input, or None if not available.
         """
-        if not hasattr(self, '_last_user_response'):
+        if not hasattr(self, "_last_user_response"):
             return None
         return self._last_user_response
 
@@ -143,11 +143,7 @@ class Approval:
             return request
 
     def resolve_request(
-        self, 
-        request_id: str, 
-        response: Response, 
-        *, 
-        user_response: str | None = None
+        self, request_id: str, response: Response, *, user_response: str | None = None
     ) -> None:
         """
         Resolve an approval request with the given response. Intended to be called by the soul.

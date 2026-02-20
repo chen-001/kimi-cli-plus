@@ -19,8 +19,8 @@ from rich.text import Text
 
 from kimi_cli.tools import extract_key_argument
 from kimi_cli.ui.shell.console import console
+from kimi_cli.ui.shell.diff_view_state import toggle_diff_view
 from kimi_cli.ui.shell.keyboard import KeyboardListener, KeyEvent
-from kimi_cli.ui.shell.diff_view_state import is_diff_view_enabled, toggle_diff_view
 from kimi_cli.utils.aioqueue import QueueShutDown
 from kimi_cli.utils.diff import format_unified_diff
 from kimi_cli.utils.logging import logger
@@ -265,7 +265,7 @@ class _ApprovalContentBlock(NamedTuple):
 class _ApprovalRequestPanel:
     def __init__(self, request: ApprovalRequest):
         self.request = request
-        
+
         # Inquiry mode: user choice/input instead of approval
         if request.is_inquiry:
             # For inquiry with options, show the options
@@ -346,9 +346,7 @@ class _ApprovalRequestPanel:
         """Render the approval menu as a panel."""
         # Different header for inquiry vs approval
         if self.request.is_inquiry:
-            header_text = (
-                f"[cyan]❓ {escape(self.request.sender)} is asking:[/cyan]"
-            )
+            header_text = f"[cyan]❓ {escape(self.request.sender)} is asking:[/cyan]"
         else:
             header_text = (
                 "[yellow]⚠ "
@@ -431,9 +429,7 @@ class _InquiryRequestPanel:
     def render(self) -> RenderableType:
         """Render the inquiry panel."""
         content_lines: list[RenderableType] = [
-            Text.from_markup(
-                f"[cyan]❓ {escape(self.request.sender)} 想询问你：[/cyan]"
-            )
+            Text.from_markup(f"[cyan]❓ {escape(self.request.sender)} 想询问你：[/cyan]")
         ]
         content_lines.append(Text(""))
 
@@ -683,7 +679,7 @@ class _LiveView:
                             Text(msg.stats_text, style="dim"),
                             title="[dim]📊 本次回答统计[/dim]",
                             border_style="dim",
-                            padding=(0, 1)
+                            padding=(0, 1),
                         )
                     )
                     console.print()
@@ -740,7 +736,7 @@ class _LiveView:
             case KeyEvent.ENTER:
                 resp = self._current_approval_request_panel.get_selected_response()
                 request = self._current_approval_request_panel.request
-                
+
                 # For inquiry requests with options, pass the selected option as user_response
                 if request.is_inquiry and request.options:
                     selected_text = self._current_approval_request_panel.options[
@@ -753,7 +749,7 @@ class _LiveView:
                         request.resolve("approve", user_response=selected_text)
                 else:
                     request.resolve(resp)
-                    
+
                 if resp == "approve_for_session":
                     to_remove_from_queue: list[ApprovalRequest] = []
                     for req in self._approval_request_queue:

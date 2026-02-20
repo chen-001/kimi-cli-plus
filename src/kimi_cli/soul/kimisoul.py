@@ -326,9 +326,7 @@ class KimiSoul:
                 resp = await wire_request.wait()
                 # Pass user_response for inquiry requests
                 self._approval.resolve_request(
-                    request.id, 
-                    resp, 
-                    user_response=wire_request.user_response
+                    request.id, resp, user_response=wire_request.user_response
                 )
                 wire_send(ApprovalResponse(request_id=request.id, response=resp))
 

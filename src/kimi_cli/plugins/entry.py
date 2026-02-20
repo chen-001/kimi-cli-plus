@@ -21,13 +21,13 @@ import warnings
 # 这是关键：补丁必须在原始模块被导入之前应用
 try:
     from kimi_cli.plugins import apply_all_patches
+
     apply_all_patches()
 except Exception as e:
     warnings.warn(
-        f"[Kimi Plugins] 加载插件失败: {e}\n"
-        "将继续启动kimi-cli，但插件功能不可用。",
+        f"[Kimi Plugins] 加载插件失败: {e}\n将继续启动kimi-cli，但插件功能不可用。",
         RuntimeWarning,
-        stacklevel=2
+        stacklevel=2,
     )
 
 # 现在导入并启动原版kimi-cli

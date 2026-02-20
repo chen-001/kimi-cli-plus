@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 """
-Kimi CLI 插件入口
-=================
+Kimi CLI Plus 插件入口
+======================
 
-带插件支持的kimi-cli启动入口。
+带插件支持的kimi-cli-plus启动入口。
 
 使用方法：
     python -m kimi_cli.plugins.entry [arguments...]
+    kcp [arguments...]
 
 或者设置别名：
-    alias km='/Users/chenzongwei/kimi-cli/kimi-with-plugins'
+    alias kcp='/Users/chenzongwei/kimi-cli/kimi-with-plugins'
 """
 
 from __future__ import annotations
@@ -25,12 +26,12 @@ try:
     apply_all_patches()
 except Exception as e:
     warnings.warn(
-        f"[Kimi Plugins] 加载插件失败: {e}\n将继续启动kimi-cli，但插件功能不可用。",
+        f"[Kimi Plugins] 加载插件失败: {e}\n将继续启动kimi-cli-plus，但插件功能不可用。",
         RuntimeWarning,
         stacklevel=2,
     )
 
-# 现在导入并启动原版kimi-cli
+# 现在导入并启动kimi-cli-plus
 from kimi_cli.cli import cli
 
 

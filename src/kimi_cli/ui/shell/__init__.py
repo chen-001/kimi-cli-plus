@@ -279,7 +279,7 @@ class Shell:
         if result == UpdateResult.UPDATE_AVAILABLE:
             while True:
                 toast(
-                    "new version found, run `uv tool upgrade kimi-cli` to upgrade",
+                    "new version found, run `uv tool upgrade kimi-cli-plus` to upgrade",
                     topic="update",
                     duration=30.0,
                 )
@@ -351,7 +351,7 @@ def _print_welcome_info(name: str, info_items: list[WelcomeInfoItem]) -> None:
             rows.append(
                 Text.from_markup(
                     f"\n[yellow]New version available: {latest_version}. "
-                    "Please run `uv tool upgrade kimi-cli` to upgrade.[/yellow]"
+                    "Please run `uv tool upgrade kimi-cli-plus` to upgrade.[/yellow]"
                 )
             )
 

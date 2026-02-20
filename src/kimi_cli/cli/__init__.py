@@ -33,11 +33,11 @@ class SwitchToWeb(Exception):
 
 cli = typer.Typer(
     epilog="""\b\
-Documentation:        https://moonshotai.github.io/kimi-cli/\n
-LLM friendly version: https://moonshotai.github.io/kimi-cli/llms.txt""",
+Documentation:        https://github.com/chen-001/kimi-cli-plus\n
+Kimi CLI Plus - Enhanced version with plugin support""",
     add_completion=False,
     context_settings={"help_option_names": ["-h", "--help"]},
-    help="Kimi, your next CLI agent.",
+    help="Kimi CLI Plus, your enhanced CLI agent with plugins.",
 )
 
 UIMode = Literal["shell", "print", "acp", "wire"]
@@ -47,7 +47,7 @@ OutputFormat = Literal["text", "stream-json"]
 
 def _version_callback(value: bool) -> None:
     if value:
-        typer.echo(f"kimi, version {VERSION}")
+        typer.echo(f"kimi-cli-plus, version {VERSION}")
         raise typer.Exit()
 
 

@@ -10,7 +10,7 @@ src/kimi_cli/plugins/           # 插件目录
 kimi-with-plugins               # 启动脚本
 ```
 
-### 2. 启动带插件的kimi-cli
+### 2. 启动带插件的kimi-cli-plus
 
 **方法A: 直接使用wrapper脚本**
 ```bash
@@ -25,7 +25,7 @@ python -m kimi_cli.plugins.entry
 **方法C: 设置别名（推荐）**
 ```bash
 # 添加到 ~/.bashrc 或 ~/.zshrc
-echo 'alias kimi="/path/to/kimi-cli/kimi-with-plugins"' >> ~/.bashrc
+echo 'alias kimi="/path/to/kimi-cli-plus/kimi-with-plugins"' >> ~/.bashrc
 source ~/.bashrc
 
 # 然后直接使用
@@ -97,13 +97,13 @@ src/example.py
 
 绿色(`+`)表示新增，红色(`-`)表示删除。
 
-## 更新kimi-cli时
+## 更新kimi-cli-plus时
 
 由于插件代码完全独立于官方代码，更新官方版本非常简单：
 
 ```bash
 # 1. 更新官方版本
-uv tool upgrade kimi-cli
+uv tool upgrade kimi-cli-plus
 
 # 2. 继续使用带插件的版本
 ./kimi-with-plugins
@@ -145,7 +145,7 @@ def apply_all_patches():
 **解决**:
 ```bash
 # 检查Python路径
-cd /path/to/kimi-cli
+cd /path/to/kimi-cli-plus
 python -c "import sys; print(sys.path)"
 
 # 确保是从正确目录启动
@@ -244,6 +244,6 @@ plugins/
 ## 反馈与支持
 
 如有问题，请检查：
-1. 确认kimi-cli版本 >= 0.70.0
+1. 确认kimi-cli-plus版本 >= 0.70.0
 2. 检查Python版本 >= 3.9
 3. 查看启动时的插件加载日志

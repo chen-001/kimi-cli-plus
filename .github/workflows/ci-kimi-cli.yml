@@ -1,17 +1,6 @@
-name: CI (kimi-cli)
+name: CI (kimi-cli-plus)
 
 on:
-  pull_request:
-    paths:
-      - ".github/workflows/**"
-      - "packages/**"
-      - "src/**"
-      - "tests/**"
-      - "tests_e2e/**"
-      - "tests_ai/**"
-      - "web/**"
-      - "pyproject.toml"
-      - "uv.lock"
   push:
     branches:
       - main
@@ -19,9 +8,6 @@ on:
       - ".github/workflows/**"
       - "packages/**"
       - "src/**"
-      - "tests/**"
-      - "tests_e2e/**"
-      - "tests_ai/**"
       - "web/**"
       - "pyproject.toml"
       - "uv.lock"
@@ -31,74 +17,8 @@ env:
   TERM: dumb
 
 jobs:
-  check:
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.14
-        id: setup-python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.14"
-          allow-prereleases: true
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v1
-        with:
-          version: "0.8.5"
-          enable-cache: true
-          cache-dependency-glob: uv.lock
-
-      - name: Prepare building environment
-        env:
-          UV_PYTHON: ${{ steps.setup-python.outputs.python-path }}
-        run: make prepare
-
-      - name: Run checks (ruff only, pyright disabled for plugin system)
-        env:
-          UV_PYTHON: ${{ steps.setup-python.outputs.python-path }}
-        run: |
-          uv run ruff check
-          uv run ruff format --check
-
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.12", "3.13", "3.14"]
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
-        id: setup-python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          allow-prereleases: true
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v1
-        with:
-          version: "0.8.5"
-          enable-cache: true
-          cache-dependency-glob: uv.lock
-
-      - name: Prepare building environment
-        env:
-          UV_PYTHON: ${{ steps.setup-python.outputs.python-path }}
-        run: make prepare
-
-      - name: Run tests
-        env:
-          UV_PYTHON: ${{ steps.setup-python.outputs.python-path }}
-          PYTHONUTF8: "1"
-        run: make test-kimi-cli
-
   build:
+    name: Build standalone binary (${{ matrix.target }})
     strategy:
       fail-fast: true
       matrix:
@@ -171,9 +91,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: kimi-${{ matrix.target }}
+          name: kimi-plus-${{ matrix.target }}
           path: ${{ matrix.binary_path }}
           if-no-files-found: error
           retention-days: 7
-
-

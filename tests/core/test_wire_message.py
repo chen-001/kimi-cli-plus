@@ -63,7 +63,9 @@ async def test_wire_message_serde():
     _test_serde(msg)
 
     msg = TurnEnd()
-    assert serialize_wire_message(msg) == snapshot({"type": "TurnEnd", "payload": {"stats_text": None}})
+    assert serialize_wire_message(msg) == snapshot(
+        {"type": "TurnEnd", "payload": {"stats_text": None}}
+    )
     _test_serde(msg)
 
     msg = StepBegin(n=1)
@@ -204,7 +206,9 @@ async def test_wire_message_serde():
                 "sender": "bash",
                 "action": "Execute dangerous command",
                 "description": "This command will delete files",
-                "display": [], "options": None},
+                "display": [],
+                "options": None,
+            },
         }
     )
     _test_serde(msg)

@@ -23,7 +23,9 @@ def test_load_default_agent_spec():
     assert spec.exclude_tools == snapshot([])
     assert spec.tools == snapshot(
         [
-            "kimi_cli.tools.multiagent:Task", "kimi_cli.tools.ask_user:AskUser", "kimi_cli.tools.todo:SetTodoList",
+            "kimi_cli.tools.multiagent:Task",
+            "kimi_cli.tools.ask_user:AskUser",
+            "kimi_cli.tools.todo:SetTodoList",
             "kimi_cli.tools.shell:Shell",
             "kimi_cli.tools.file:ReadFile",
             "kimi_cli.tools.file:ReadMediaFile",
@@ -61,7 +63,9 @@ def test_load_default_agent_spec():
     )
     assert subagent_specs["coder"].tools == snapshot(
         [
-            "kimi_cli.tools.multiagent:Task", "kimi_cli.tools.ask_user:AskUser", "kimi_cli.tools.todo:SetTodoList",
+            "kimi_cli.tools.multiagent:Task",
+            "kimi_cli.tools.ask_user:AskUser",
+            "kimi_cli.tools.todo:SetTodoList",
             "kimi_cli.tools.shell:Shell",
             "kimi_cli.tools.file:ReadFile",
             "kimi_cli.tools.file:ReadMediaFile",
@@ -150,7 +154,9 @@ agent:
         )
         assert spec.tools == snapshot(
             [
-                "kimi_cli.tools.multiagent:Task", "kimi_cli.tools.ask_user:AskUser", "kimi_cli.tools.todo:SetTodoList",
+                "kimi_cli.tools.multiagent:Task",
+                "kimi_cli.tools.ask_user:AskUser",
+                "kimi_cli.tools.todo:SetTodoList",
                 "kimi_cli.tools.shell:Shell",
                 "kimi_cli.tools.file:ReadFile",
                 "kimi_cli.tools.file:ReadMediaFile",

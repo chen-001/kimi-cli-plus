@@ -1,16 +1,54 @@
-# Kimi Code CLI
+# Kimi CLI Plus (kcp)
 
-[![Commit Activity](https://img.shields.io/github/commit-activity/w/MoonshotAI/kimi-cli)](https://github.com/MoonshotAI/kimi-cli/graphs/commit-activity)
-[![Checks](https://img.shields.io/github/check-runs/MoonshotAI/kimi-cli/main)](https://github.com/MoonshotAI/kimi-cli/actions)
-[![Version](https://img.shields.io/pypi/v/kimi-cli)](https://pypi.org/project/kimi-cli/)
-[![Downloads](https://img.shields.io/pypi/dw/kimi-cli)](https://pypistats.org/packages/kimi-cli)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/MoonshotAI/kimi-cli)
+[![Commit Activity](https://img.shields.io/github/commit-activity/w/chen-001/kimi-cli-plus)](https://github.com/chen-001/kimi-cli-plus/graphs/commit-activity)
+[![Version](https://img.shields.io/pypi/v/kimi-cli-plus)](https://pypi.org/project/kimi-cli-plus/)
+[![Downloads](https://img.shields.io/pypi/dw/kimi-cli-plus)](https://pypistats.org/packages/kimi-cli-plus)
 
-[Kimi Code](https://www.kimi.com/code/) | [Documentation](https://moonshotai.github.io/kimi-cli/en/) | [文档](https://moonshotai.github.io/kimi-cli/zh/)
+Kimi CLI Plus 是 [Kimi Code CLI](https://github.com/MoonshotAI/kimi-cli) 的魔改版，加入了一些自定义功能。
 
-Kimi Code CLI is an AI agent that runs in the terminal, helping you complete software development tasks and terminal operations. It can read and edit code, execute shell commands, search and fetch web pages, and autonomously plan and adjust actions during execution.
+Kimi Code CLI 是一个运行在终端中的 AI 智能体，帮助你完成软件开发任务和终端操作。它可以读取和编辑代码、执行 shell 命令、搜索和获取网页内容，并在执行过程中自主规划和调整操作。
 
-## Getting Started
+## 安装
+
+### 一键安装
+
+**Linux / macOS:**
+```bash
+curl -LsSf https://raw.githubusercontent.com/chen-001/kimi-cli-plus/main/scripts/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+Invoke-RestMethod https://raw.githubusercontent.com/chen-001/kimi-cli-plus/main/scripts/install.ps1 | Invoke-Expression
+```
+
+### 使用 uv 安装
+
+如果你已经安装了 [uv](https://github.com/astral-sh/uv)，可以直接运行：
+
+```bash
+uv tool install --python 3.13 kimi-cli-plus
+```
+
+### 验证安装
+
+```bash
+kcp --version
+```
+
+### 升级与卸载
+
+**升级：**
+```bash
+uv tool upgrade kimi-cli-plus --no-cache
+```
+
+**卸载：**
+```bash
+uv tool uninstall kimi-cli-plus
+```
+
+## 使用入门
 
 See [Getting Started](https://moonshotai.github.io/kimi-cli/en/guides/getting-started.html) for how to install and start using Kimi Code CLI.
 

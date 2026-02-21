@@ -32,6 +32,8 @@ class TurnStats:
     lines_removed: int = 0
     total_tokens: int = 0
     completion_tokens: int = 0
+    generation_time_s: float = 0.0
+    usage_samples: int = 0
 
     @property
     def total_time_ms(self) -> int:
@@ -48,12 +50,9 @@ class TurnStats:
     @property
     def tps(self) -> float | None:
         """TPS (tokens per second)。"""
-        if not self.completion_tokens or not self.first_token_time:
+        if self.usage_samples <= 0 or self.generation_time_s <= 0:
             return None
-        generation_time = time.time() - self.first_token_time
-        if generation_time <= 0:
-            return None
-        return round(self.completion_tokens / generation_time, 1)
+        return round(self.completion_tokens / self.generation_time_s, 1)
 
     def format_display(self) -> str:
         """格式化为显示字符串。"""
@@ -93,6 +92,7 @@ class KimiSoulPatch(PatchBase):
         try:
             self._patch_turn_method()
             self._patch_step_method()
+            self._patch_retry_log_method()
             self._patch_run_method()
             self._patch_toolset_method()
             print(f"[Plugin] {self.get_patch_name()} applied successfully")
@@ -188,6 +188,9 @@ class KimiSoulPatch(PatchBase):
         async def patched_step(self):
             """包装后的_step方法。"""
             stats = KimiSoulPatch._current_stats
+            step_first_token_time: float | None = None
+            step_usage_recorded = False
+            step_start_time = time.time()
 
             # 增加API调用计数
             if stats:
@@ -201,13 +204,29 @@ class KimiSoulPatch(PatchBase):
 
             def wrapped_wire_send(msg):
                 """包装wire_send以检测首个内容部分和token使用情况。"""
+                nonlocal step_first_token_time, step_usage_recorded
+
                 # 检测首个token（任何AI响应：文本、思考、工具调用）
                 if (
                     stats
-                    and stats.first_token_time is None
+                    and step_first_token_time is None
                     and isinstance(msg, (TextPart, ThinkPart, ToolCall, ToolCallPart))
                 ):
-                    stats.first_token_time = time.time()
+                    step_first_token_time = time.time()
+                    if stats.first_token_time is None:
+                        stats.first_token_time = step_first_token_time
+
+                # 记录token使用情况（来自每个step结尾的StatusUpdate）
+                if (
+                    stats
+                    and not step_usage_recorded
+                    and isinstance(msg, StatusUpdate)
+                    and msg.token_usage
+                ):
+                    KimiSoulPatch.record_token_usage(msg.token_usage)
+                    start_ts = step_first_token_time or step_start_time
+                    stats.generation_time_s += max(0.0, time.time() - start_ts)
+                    step_usage_recorded = True
 
                 return original_wire_send(msg)
 
@@ -221,11 +240,6 @@ class KimiSoulPatch(PatchBase):
                 # 调用原始 _step 方法
                 result = await original_step(self)
 
-                # 在恢复 wire_send 之前，手动记录 token usage
-                # 因为 _step 内部会在最后发送 StatusUpdate，但那时 wire_send 已经被恢复了
-                if stats and result and hasattr(result, 'usage') and result.usage:
-                    KimiSoulPatch.record_token_usage(result.usage)
-
                 # 恢复 wire_send
                 kimi_cli.soul.wire_send = original_wire_send
                 kimisoul_module.wire_send = original_wire_send_in_kimisoul
@@ -238,6 +252,21 @@ class KimiSoulPatch(PatchBase):
                 raise
 
         KimiSoul._step = patched_step
+
+    def _patch_retry_log_method(self) -> None:
+        """包装 _retry_log 以在重试时补计 API 请求次数。"""
+        from kimi_cli.soul.kimisoul import KimiSoul
+
+        original_retry_log = KimiSoul._retry_log
+
+        def patched_retry_log(name: str, retry_state):
+            stats = KimiSoulPatch._current_stats
+            # _step 内部采用 tenacity 重试；每次重试代表一次额外 API 请求尝试
+            if stats and name == "step":
+                stats.api_calls += 1
+            return original_retry_log(name, retry_state)
+
+        KimiSoul._retry_log = staticmethod(patched_retry_log)
 
     def _patch_toolset_method(self) -> None:
         """包装 KimiToolset.handle 方法以追踪工具调用。"""
@@ -280,8 +309,9 @@ class KimiSoulPatch(PatchBase):
             from kosong.chat_provider import TokenUsage
 
             if isinstance(usage, TokenUsage):
-                stats.total_tokens = usage.total or 0
-                stats.completion_tokens = usage.output or 0
+                stats.total_tokens += usage.total or 0
+                stats.completion_tokens += usage.output or 0
+                stats.usage_samples += 1
 
 
 def patch() -> bool:

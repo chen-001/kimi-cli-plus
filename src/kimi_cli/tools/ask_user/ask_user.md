@@ -1,39 +1,57 @@
-向用户提问或请求选择。即使在YOLO模式下也会暂停等待用户回复。
+Use this tool when you need the user to make a choice or provide input.
 
-当用户指令不够明确、需要补充信息、或需要用户做选择时使用此工具。
+**CRITICAL: When you have multiple options for the user to choose from, you MUST call this tool. DO NOT list options in your response.**
 
-**参数说明：**
-- `question` (string, required): 要问用户的问题
-- `options` (string[], optional): 可选的选项列表。提供后用户必须从选项中选择
-- `require_input` (boolean, optional): 是否需要用户输入文字。默认 true
+## MANDATORY Use Cases
 
-**使用示例：**
+You MUST call AskUser in these situations:
 
-1. 简单询问（自由输入）：
+1. **User asks for options** - "give me options", "what are my choices", "which one should I pick"
+2. **Multiple approaches available** - 2+ ways to accomplish a task
+3. **Need user decision** - Clarification required before proceeding
+4. **User must provide input** - Need specific information to continue
+
+## How to Use
+
 ```json
 {
-  "question": "请指定要优化的文件路径"
+  "questionnaire": "Please choose an approach:\n\n[question] Which approach do you prefer?\n[topic] Approach\n[option] Option A: Fast solution\n[option] Option B: Thorough solution"
 }
 ```
 
-2. 多选项选择：
+**Format for `questionnaire` field:**
+- `[question]` - The main question to ask
+- `[topic]` - Short label for UI navigation (optional)
+- `[option]` - Each option on its own line
+
+The user can:
+1. Use UP/DOWN arrows to navigate options
+2. Press ENTER to select
+3. Type custom input when "Own answer" option is selected
+
+## Examples
+
+**User: "I want to optimize my code, give me some options"**
+
+Call AskUser with:
 ```json
 {
-  "question": "请选择优化方向",
-  "options": ["提速", "省内存", "增强可读性"]
+  "questionnaire": "[question] Which optimization approach would you like?\n[topic] Optimization\n[option] Speed optimization\n[option] Memory optimization\n[option] Readability improvement"
 }
 ```
 
-3. 多选项选择（仅需确认）：
+**User: "How should I handle authentication?"**
+
+Call AskUser with:
 ```json
 {
-  "question": "确认删除此文件？",
-  "options": ["确认删除", "取消"],
-  "require_input": false
+  "questionnaire": "[question] Which authentication method do you prefer?\n[topic] Auth Method\n[option] OAuth 2.0\n[option] JWT tokens\n[option] Session-based"
 }
 ```
 
-**注意事项：**
-- 如果用户取消回答，会返回 `cancelled=true`，当前任务应该停止
-- 如果提供了 `options`，用户必须从选项中选择
-- 如果 `require_input=false`，必须提供 `options`，否则工具无法正常工作
+## Important
+
+- ALWAYS call AskUser when you have options to present
+- NEVER list options in your text response
+- The tool provides an interactive selection UI with keyboard navigation
+- User can always provide custom input if preset options don't fit

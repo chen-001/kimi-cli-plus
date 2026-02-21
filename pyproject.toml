@@ -70,9 +70,9 @@ pykaos = { workspace = true }
 kimi-cli-plus = { workspace = true }
 
 [project.scripts]
-kimi-plus = "kimi_cli.cli:cli"
-kimi-cli-plus = "kimi_cli.cli:cli"
-kcp = "kimi_cli.cli:cli"
+kimi-plus = "kimi_cli.plugins.entry:main"
+kimi-cli-plus = "kimi_cli.plugins.entry:main"
+kcp = "kimi_cli.plugins.entry:main"
 
 [tool.ruff]
 line-length = 100

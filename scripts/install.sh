@@ -43,7 +43,7 @@ if ! command -v "$UV_BIN" >/dev/null 2>&1; then
 fi
 
 echo "Installing $PACKAGE_NAME..."
-"$UV_BIN" tool install --python "$PYTHON_VERSION" "$PACKAGE_NAME"
+"$UV_BIN" tool install --python "$PYTHON_VERSION" git+https://github.com/chen-001/kimi-cli-plus.git
 
 echo ""
 echo "✅ $PACKAGE_NAME installed successfully!"
@@ -55,5 +55,5 @@ echo "  kimi-cli-plus - Alternative command"
 echo ""
 echo "To verify installation, run: kcp --version"
 echo ""
-echo "To upgrade: uv tool upgrade $PACKAGE_NAME --no-cache"
+echo "To upgrade: uv tool upgrade kimi-cli-plus --no-cache"
 echo "To uninstall: uv tool uninstall $PACKAGE_NAME"

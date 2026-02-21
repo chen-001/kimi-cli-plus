@@ -43,7 +43,8 @@ if ! command -v "$UV_BIN" >/dev/null 2>&1; then
 fi
 
 echo "Installing $PACKAGE_NAME..."
-"$UV_BIN" tool install --python "$PYTHON_VERSION" git+https://github.com/chen-001/kimi-cli-plus.git
+# Use --no-sources to ignore workspace sources and use PyPI versions instead
+"$UV_BIN" tool install --python "$PYTHON_VERSION" --no-sources git+https://github.com/chen-001/kimi-cli-plus.git
 
 echo ""
 echo "✅ $PACKAGE_NAME installed successfully!"

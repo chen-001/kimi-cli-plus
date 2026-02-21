@@ -629,19 +629,35 @@ class _LiveView:
     def compose(self) -> RenderableType:
         """Compose the live view display content."""
         blocks: list[RenderableType] = []
-        if self._mooning_spinner is not None:
-            blocks.append(self._mooning_spinner)
-        elif self._compacting_spinner is not None:
-            blocks.append(self._compacting_spinner)
+
+        # When there's an approval or inquiry panel waiting for user input,
+        # skip rendering any spinner content to prevent Live from continuously
+        # refreshing and producing extra output (empty lines).
+        # This is critical because Live.refresh_per_second causes continuous updates,
+        # and spinner animations would trigger constant re-rendering.
+        has_pending_user_input = (
+            self._current_approval_request_panel is not None
+            or self._current_inquiry_panel is not None
+        )
+
+        if has_pending_user_input:
+            # Only render the pending panel and status, no spinners
+            if self._current_inquiry_panel:
+                blocks.append(self._current_inquiry_panel.render())
+            elif self._current_approval_request_panel:
+                blocks.append(self._current_approval_request_panel.render())
         else:
-            if self._current_content_block is not None:
-                blocks.append(self._current_content_block.compose())
-            for tool_call in self._tool_call_blocks.values():
-                blocks.append(tool_call.compose())
-        if self._current_inquiry_panel:
-            blocks.append(self._current_inquiry_panel.render())
-        elif self._current_approval_request_panel:
-            blocks.append(self._current_approval_request_panel.render())
+            # Normal rendering flow
+            if self._mooning_spinner is not None:
+                blocks.append(self._mooning_spinner)
+            elif self._compacting_spinner is not None:
+                blocks.append(self._compacting_spinner)
+            else:
+                if self._current_content_block is not None:
+                    blocks.append(self._current_content_block.compose())
+                for tool_call in self._tool_call_blocks.values():
+                    blocks.append(tool_call.compose())
+
         blocks.append(self._status_block.render())
         return Group(*blocks)
 

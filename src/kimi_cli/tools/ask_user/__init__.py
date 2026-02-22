@@ -79,6 +79,13 @@ def parse_questionnaire(questionnaire: str) -> tuple[str, str | None, list[str]]
     if not question and questionnaire.strip():
         question = questionnaire.strip()
 
+    # 自动添加"自定义输入"选项（如果提供了其他选项且最后一个不是自定义输入）
+    if options and not any(
+        opt.startswith("✏️") or "自定义" in opt or "own answer" in opt.lower()
+        for opt in options
+    ):
+        options.append("✏️ 自定义输入（选择此项后输入你的答案）")
+
     return question, topic, options
 
 
@@ -103,7 +110,9 @@ class AskUserParams(BaseModel):
 用户可以：
 1. 使用上下键浏览选项
 2. 按Enter选择
-3. 在"自定义输入"选项输入自己的答案"""
+3. 在"自定义输入"选项输入自己的答案
+
+注意：系统会自动在选项列表最后添加"✏️ 自定义输入"选项，无需手动添加。"""
     )
 
 
@@ -149,7 +158,7 @@ class AskUser(CallableTool2[AskUserParams]):
         使用approval系统发起询问，并获取用户选择。
         """
         try:
-            # 解析questionnaire格式
+            # 解析questionnaire格式（会自动添加"自定义输入"选项）
             question, topic, options = parse_questionnaire(params.questionnaire)
 
             if not question:

@@ -27,7 +27,9 @@ You MUST call AskUser in these situations:
 The user can:
 1. Use UP/DOWN arrows to navigate options
 2. Press ENTER to select
-3. Type custom input when "Own answer" option is selected
+3. Type custom input when "✏️ 自定义输入" option is selected
+
+**Note:** The system automatically adds a "✏️ 自定义输入" option at the end of the list. You don't need to add it manually.
 
 ## Examples
 
@@ -54,4 +56,4 @@ Call AskUser with:
 - ALWAYS call AskUser when you have options to present
 - NEVER list options in your text response
 - The tool provides an interactive selection UI with keyboard navigation
-- User can always provide custom input if preset options don't fit
+- **The system automatically adds a "✏️ 自定义输入" option at the end** - you don't need to add it manually

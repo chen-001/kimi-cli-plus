@@ -11,6 +11,43 @@ Only write entries that are worth mentioning to users.
 
 ## Unreleased
 
+## 1.16.0 (2026-02-27)
+
+- Web: Update ASCII logo banner to a new styled design
+- Core: Add `--add-dir` CLI option and `/add-dir` slash command to expand the workspace scope with additional directories — added directories are accessible to all file tools (read, write, glob, replace), persisted across sessions, and shown in the system prompt
+- Shell: Add `Ctrl-O` keyboard shortcut to open the current input in an external editor (`$VISUAL`/`$EDITOR`), with auto-detection fallback to VS Code, Vim, Vi, or Nano
+- Shell: Add `/editor` slash command to configure and switch the default external editor, with interactive selection and persistent config storage
+- Shell: Add `/new` slash command to create and switch to a new session without restarting Kimi Code CLI
+- Wire: Auto-hide `AskUserQuestion` tool when the client does not support the `supports_question` capability, preventing the LLM from invoking unsupported interactions
+- Core: Estimate context token count after compaction so context usage percentage is not reported as 0%
+- Web: Show context usage percentage with one decimal place for better precision
+
+## 1.15.0 (2026-02-27)
+
+- Shell: Simplify input prompt by removing username prefix for a cleaner appearance
+- Shell: Add horizontal separator line and expanded keyboard shortcut hints to the toolbar
+- Shell: Add number key shortcuts (1–5) for quick option selection in question and approval panels, with redesigned bordered panel UI and keyboard hints
+- Shell: Add tab-style navigation for multi-question panels — use Left/Right arrows or Tab to switch between questions, with visual indicators for answered, current, and pending states, and automatic state restoration when revisiting a question
+- Shell: Allow Space key to submit single-select questions in the question panel
+- Web: Add tab-style navigation for multi-question dialogs with clickable tab bar, keyboard navigation, and state restoration when revisiting a question
+- Core: Set process title to "Kimi Code" (visible in `ps` / Activity Monitor / terminal tab title) and label web worker subprocesses as "kimi-code-worker"
+
+## 1.14.0 (2026-02-26)
+
+- Shell: Make FetchURL tool's URL parameter a clickable hyperlink in the terminal
+- Tool: Add `AskUserQuestion` tool for presenting structured questions with predefined options during execution, supporting single-select, multi-select, and custom text input
+- Wire: Add `QuestionRequest` / `QuestionResponse` message types and capability negotiation for structured question interactions
+- Shell: Add interactive question panel for `AskUserQuestion` with keyboard-driven option selection
+- Web: Add `QuestionDialog` component for answering structured questions inline, replacing the prompt composer when a question is pending
+- Core: Persist session state across sessions — approval decisions (YOLO mode, auto-approved actions) and dynamic subagents are now saved and restored when resuming a session
+- Core: Use atomic JSON writes for metadata and session state files to prevent data corruption on crash
+- Wire: Add `steer` request to inject user messages into an active agent turn (protocol version 1.4)
+- Web: Allow Cmd/Ctrl+Click on FetchURL tool's URL parameter to open the link in a new browser tab, with platform-appropriate tooltip hint
+
+## 1.13.0 (2026-02-24)
+
+- Core: Add automatic connection recovery that recreates the HTTP client on connection and timeout errors before retrying, improving resilience against transient network failures
+
 ## 1.12.0 (2026-02-11)
 
 - Web: Add subagent activity rendering to display subagent steps (thinking, tool calls, text) inside Task tool messages

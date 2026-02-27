@@ -18,8 +18,13 @@ class KeyEvent(Enum):
     ENTER = auto()
     ESCAPE = auto()
     TAB = auto()
-    CTRL_Q = auto()
+    SPACE = auto()
     CTRL_E = auto()
+    NUM_1 = auto()
+    NUM_2 = auto()
+    NUM_3 = auto()
+    NUM_4 = auto()
+    NUM_5 = auto()
 
 
 class KeyboardListener:
@@ -111,8 +116,7 @@ def _listen_for_keyboard_unix(
     fd = sys.stdin.fileno()
     oldterm = termios.tcgetattr(fd)
     rawattr = termios.tcgetattr(fd)
-    # Disable canonical mode, echo, and IXON (so Ctrl+Q/Ctrl+S are not captured for flow control)
-    rawattr[3] = rawattr[3] & ~termios.ICANON & ~termios.ECHO & ~termios.IXON
+    rawattr[3] = rawattr[3] & ~termios.ICANON & ~termios.ECHO
     rawattr[6][termios.VMIN] = 0
     rawattr[6][termios.VTIME] = 0
     raw_enabled = False
@@ -177,12 +181,22 @@ def _listen_for_keyboard_unix(
                     emit(KeyEvent.ESCAPE)
             elif c in (b"\r", b"\n"):
                 emit(KeyEvent.ENTER)
+            elif c == b" ":
+                emit(KeyEvent.SPACE)
             elif c == b"\t":
                 emit(KeyEvent.TAB)
-            elif c == b"\x11":  # Ctrl+Q
-                emit(KeyEvent.CTRL_Q)
             elif c == b"\x05":  # Ctrl+E
                 emit(KeyEvent.CTRL_E)
+            elif c == b"1":
+                emit(KeyEvent.NUM_1)
+            elif c == b"2":
+                emit(KeyEvent.NUM_2)
+            elif c == b"3":
+                emit(KeyEvent.NUM_3)
+            elif c == b"4":
+                emit(KeyEvent.NUM_4)
+            elif c == b"5":
+                emit(KeyEvent.NUM_5)
     finally:
         termios.tcsetattr(fd, termios.TCSAFLUSH, oldterm)
 
@@ -235,12 +249,22 @@ def _listen_for_keyboard_windows(
                     emit(KeyEvent.ESCAPE)
             elif c in (b"\r", b"\n"):
                 emit(KeyEvent.ENTER)
+            elif c == b" ":
+                emit(KeyEvent.SPACE)
             elif c == b"\t":
                 emit(KeyEvent.TAB)
-            elif c == b"\x11":  # Ctrl+Q
-                emit(KeyEvent.CTRL_Q)
             elif c == b"\x05":  # Ctrl+E
                 emit(KeyEvent.CTRL_E)
+            elif c == b"1":
+                emit(KeyEvent.NUM_1)
+            elif c == b"2":
+                emit(KeyEvent.NUM_2)
+            elif c == b"3":
+                emit(KeyEvent.NUM_3)
+            elif c == b"4":
+                emit(KeyEvent.NUM_4)
+            elif c == b"5":
+                emit(KeyEvent.NUM_5)
         else:
             if cancel.is_set():
                 break

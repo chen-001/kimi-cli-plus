@@ -15,8 +15,9 @@ from kosong.chat_provider import (
     APIEmptyResponseError,
     APIStatusError,
     APITimeoutError,
+    RetryableChatProvider,
 )
-from kosong.message import Message
+from kosong.message import Message, ToolCall
 from tenacity import RetryCallState, retry_if_exception, stop_after_attempt, wait_exponential_jitter
 
 from kimi_cli.llm import ModelCapability
@@ -31,7 +32,7 @@ from kimi_cli.soul import (
     wire_send,
 )
 from kimi_cli.soul.agent import Agent, Runtime
-from kimi_cli.soul.compaction import SimpleCompaction
+from kimi_cli.soul.compaction import CompactionResult, SimpleCompaction
 from kimi_cli.soul.context import Context
 from kimi_cli.soul.message import check_message, system, tool_result_to_message
 from kimi_cli.soul.slash import registry as soul_slash_registry
@@ -117,6 +118,8 @@ class KimiSoul:
         else:
             self._checkpoint_with_user_message = False
 
+        self._steer_queue: asyncio.Queue[str | list[ContentPart]] = asyncio.Queue()
+
         self._slash_commands = self._build_slash_commands()
         self._slash_command_map = self._index_slash_commands(self._slash_commands)
 
@@ -174,6 +177,52 @@ class KimiSoul:
 
     async def _checkpoint(self):
         await self._context.checkpoint(self._checkpoint_with_user_message)
+
+    def steer(self, content: str | list[ContentPart]) -> None:
+        """Queue a steer message for injection into the current turn."""
+        self._steer_queue.put_nowait(content)
+
+    async def _consume_pending_steers(self) -> bool:
+        """Drain the steer queue and inject as synthetic tool results.
+
+        Returns True if any steers were consumed.
+        """
+        consumed = False
+        while not self._steer_queue.empty():
+            content = self._steer_queue.get_nowait()
+            await self._inject_steer(content)
+            consumed = True
+        return consumed
+
+    async def _inject_steer(self, content: str | list[ContentPart]) -> None:
+        """Inject a single steer as a synthetic ``_steer`` tool_call + tool result pair."""
+        from uuid import uuid4
+
+        steer_id = f"steer_{uuid4().hex[:8]}"
+        text = (
+            content
+            if isinstance(content, str)
+            else Message(role="user", content=content).extract_text(" ")
+        )
+        await self._context.append_message(
+            [
+                Message(
+                    role="assistant",
+                    content=[],
+                    tool_calls=[
+                        ToolCall(
+                            id=steer_id,
+                            function=ToolCall.FunctionBody(name="_steer", arguments=None),
+                        )
+                    ],
+                ),
+                Message(
+                    role="tool",
+                    content=[system(f"The user has sent a real-time instruction:\n\n{text}")],
+                    tool_call_id=steer_id,
+                ),
+            ]
+        )
 
     @property
     def available_slash_commands(self) -> list[SlashCommand[Any]]:
@@ -302,6 +351,11 @@ class KimiSoul:
     async def _agent_loop(self) -> TurnOutcome:
         """The main agent loop for one run."""
         assert self._runtime.llm is not None
+
+        # Discard any stale steers from a previous turn.
+        while not self._steer_queue.empty():
+            self._steer_queue.get_nowait()
+
         if isinstance(self._agent.toolset, KimiToolset):
             await self._agent.toolset.wait_for_mcp_tools()
 
@@ -316,7 +370,6 @@ class KimiSoul:
                     sender=request.sender,
                     tool_call_id=request.tool_call_id,
                     display=request.display,
-                    options=request.options,
                 )
                 wire_send(wire_request)
                 # We wait for the request to be resolved over the wire, which means that,
@@ -324,10 +377,7 @@ class KimiSoul:
                 # at a time. However, be aware that subagents (which have their own souls) may
                 # also send approval requests to the root wire.
                 resp = await wire_request.wait()
-                # Pass user_response for inquiry requests
-                self._approval.resolve_request(
-                    request.id, resp, user_response=wire_request.user_response
-                )
+                self._approval.resolve_request(request.id, resp)
                 wire_send(ApprovalResponse(request_id=request.id, response=resp))
 
         step_no = 0
@@ -367,6 +417,9 @@ class KimiSoul:
                         logger.exception("Approval piping task failed")
 
             if step_outcome is not None:
+                has_steers = await self._consume_pending_steers()
+                if step_outcome.stop_reason == "no_tool_calls" and has_steers:
+                    continue  # steers injected, force another LLM step
                 final_message = (
                     step_outcome.assistant_message
                     if step_outcome.stop_reason == "no_tool_calls"
@@ -383,11 +436,25 @@ class KimiSoul:
                 await self._checkpoint()
                 await self._context.append_message(back_to_the_future.messages)
 
+            # Consume any pending steers between steps
+            await self._consume_pending_steers()
+
     async def _step(self) -> StepOutcome | None:
         """Run a single step and return a stop outcome, or None to continue."""
         # already checked in `run`
         assert self._runtime.llm is not None
         chat_provider = self._runtime.llm.chat_provider
+
+        async def _run_step_once() -> StepResult:
+            # run an LLM step (may be interrupted)
+            return await kosong.step(
+                chat_provider,
+                self._agent.system_prompt,
+                self._agent.toolset,
+                self._context.history,
+                on_message_part=wire_send,
+                on_tool_result=wire_send,
+            )
 
         @tenacity.retry(
             retry=retry_if_exception(self._is_retryable_error),
@@ -397,14 +464,10 @@ class KimiSoul:
             reraise=True,
         )
         async def _kosong_step_with_retry() -> StepResult:
-            # run an LLM step (may be interrupted)
-            return await kosong.step(
-                chat_provider,
-                self._agent.system_prompt,
-                self._agent.toolset,
-                self._context.history,
-                on_message_part=wire_send,
-                on_tool_result=wire_send,
+            return await self._run_with_connection_recovery(
+                "step",
+                _run_step_once,
+                chat_provider=chat_provider,
             )
 
         result = await _kosong_step_with_retry()
@@ -490,6 +553,13 @@ class KimiSoul:
             ChatProviderError: When the chat provider returns an error.
         """
 
+        chat_provider = self._runtime.llm.chat_provider if self._runtime.llm is not None else None
+
+        async def _run_compaction_once() -> CompactionResult:
+            if self._runtime.llm is None:
+                raise LLMNotSet()
+            return await self._compaction.compact(self._context.history, self._runtime.llm)
+
         @tenacity.retry(
             retry=retry_if_exception(self._is_retryable_error),
             before_sleep=partial(self._retry_log, "compaction"),
@@ -497,21 +567,29 @@ class KimiSoul:
             stop=stop_after_attempt(self._loop_control.max_retries_per_step),
             reraise=True,
         )
-        async def _compact_with_retry() -> Sequence[Message]:
-            if self._runtime.llm is None:
-                raise LLMNotSet()
-            return await self._compaction.compact(self._context.history, self._runtime.llm)
+        async def _compact_with_retry() -> CompactionResult:
+            return await self._run_with_connection_recovery(
+                "compaction",
+                _run_compaction_once,
+                chat_provider=chat_provider,
+            )
 
         wire_send(CompactionBegin())
-        compacted_messages = await _compact_with_retry()
+        compaction_result = await _compact_with_retry()
         await self._context.clear()
         await self._checkpoint()
-        await self._context.append_message(compacted_messages)
+        await self._context.append_message(compaction_result.messages)
+
+        # Estimate token count so context_usage is not reported as 0%
+        await self._context.update_token_count(compaction_result.estimated_token_count)
+
         wire_send(CompactionEnd())
 
     @staticmethod
     def _is_retryable_error(exception: BaseException) -> bool:
-        if isinstance(exception, (APIConnectionError, APITimeoutError, APIEmptyResponseError)):
+        if isinstance(exception, (APIConnectionError, APITimeoutError)):
+            return not bool(getattr(exception, "_kimi_recovery_exhausted", False))
+        if isinstance(exception, APIEmptyResponseError):
             return True
         return isinstance(exception, APIStatusError) and exception.status_code in (
             429,  # Too Many Requests
@@ -519,6 +597,40 @@ class KimiSoul:
             502,  # Bad Gateway
             503,  # Service Unavailable
         )
+
+    async def _run_with_connection_recovery(
+        self,
+        name: str,
+        operation: Callable[[], Awaitable[Any]],
+        *,
+        chat_provider: object | None = None,
+    ) -> Any:
+        try:
+            return await operation()
+        except (APIConnectionError, APITimeoutError) as error:
+            if not isinstance(chat_provider, RetryableChatProvider):
+                raise
+            try:
+                recovered = chat_provider.on_retryable_error(error)
+            except Exception:
+                logger.exception(
+                    "Failed to recover chat provider during {name} after {error_type}.",
+                    name=name,
+                    error_type=type(error).__name__,
+                )
+                raise
+            if not recovered:
+                raise
+            logger.info(
+                "Recovered chat provider during {name} after {error_type}; retrying once.",
+                name=name,
+                error_type=type(error).__name__,
+            )
+            try:
+                return await operation()
+            except (APIConnectionError, APITimeoutError) as second_error:
+                second_error._kimi_recovery_exhausted = True  # type: ignore[attr-defined]
+                raise
 
     @staticmethod
     def _retry_log(name: str, retry_state: RetryCallState):

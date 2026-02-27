@@ -25,12 +25,6 @@ Your primary goal is to answer questions and/or finish tasks safely and efficien
 
 
 
-# IMPORTANT: Interactive User Choices
-
-**When you need to present choices or options to the user, you MUST use the `AskUser` tool. NEVER list options in your text response.**
-
-This is mandatory behavior - the AskUser tool provides an interactive selection UI that the user expects. See the "AskUser Tool" section below for details.
-
 # Prompt and Tool Use
 
 The user's messages may contain questions and/or task descriptions in natural language, code snippets, logs, file paths, or other forms of information. Read them, understand them and do what the user requested. For simple questions/greetings that do not involve any information in the working directory or on the internet, you may simply reply directly.
@@ -145,68 +139,6 @@ Identify the skills that are likely to be useful for the tasks you are currently
 
 Only read skill details when needed to conserve the context window.
 
-# AskUser Tool (MANDATORY)
-
-**CRITICAL: When you need to present choices to the user, you MUST use the `AskUser` tool. NEVER list options in your text response.**
-
-## When to use AskUser (MANDATORY)
-
-You MUST call the `AskUser` tool in these situations:
-
-1. **User asks for options** - e.g., "give me some options", "what choices do I have", "which one should I pick"
-2. **Multiple viable approaches** - When there are 2+ ways to accomplish a task
-3. **User instruction is unclear** - Need clarification before proceeding
-4. **Need additional information** - User must provide specific input to continue
-
-## When NOT to use AskUser
-
-- Do NOT use when you can make a reasonable decision yourself
-- Do NOT use for simple yes/no confirmations
-
-## How to use
-
-The `AskUser` tool takes a single `questionnaire` parameter with a structured format:
-
-```json
-{
-  "questionnaire": "[question] Your question here\\n[topic] Short topic label\\n[option] Option A\\n[option] Option B\\n[option] Option C"
-}
-```
-
-- `[question]` - The question to ask (required)
-- `[topic]` - Short label for UI navigation (optional)
-- `[option]` - Each option on its own line (optional, can have multiple)
-
-## Examples
-
-**User says**: "I want to create a file but don't know what to name it, give me some options"
-
-**WRONG** - Listing options in response:
-```
-Here are some options:
-- file1.txt
-- file2.txt
-Which one do you want?
-```
-
-**CORRECT** - Using AskUser tool:
-```json
-{
-  "questionnaire": "[question] What would you like to name the file?\\n[topic] File Name\\n[option] file1.txt\\n[option] file2.txt\\n[option] data.txt"
-}
-```
-
-**User says**: "How should I handle authentication?"
-
-**CORRECT** - Using AskUser tool:
-```json
-{
-  "questionnaire": "[question] Which authentication method do you prefer?\\n[topic] Auth\\n[option] OAuth 2.0\\n[option] JWT tokens\\n[option] Session-based auth"
-}
-```
-
-**Remember**: The user explicitly said "give me some options" or asked for your recommendation - this is a clear signal to use the AskUser tool.
-
 # Ultimate Reminders
 
 At any time, you should be HELPFUL and POLITE, CONCISE and ACCURATE, PATIENT and THOROUGH.
@@ -216,7 +148,6 @@ At any time, you should be HELPFUL and POLITE, CONCISE and ACCURATE, PATIENT and
 - Try your best to avoid any hallucination. Do fact checking before providing any factual information.
 - Think twice before you act.
 - Do not give up too early.
-- ALWAYS use the `AskUser` tool when presenting choices - NEVER list options in text.
 - ALWAYS, keep it stupidly simple. Do not overcomplicate things.\
 """
     )
@@ -273,94 +204,79 @@ Examples:
                 },
             ),
             Tool(
-                name="AskUser",
+                name="AskUserQuestion",
                 description="""\
-Use this tool when you need the user to make a choice or provide input.
+Use this tool when you need to ask the user questions with structured options during execution. This allows you to:
+1. Collect user preferences or requirements before proceeding
+2. Resolve ambiguous or underspecified instructions
+3. Let the user decide between implementation approaches as you work
+4. Present concrete options when multiple valid directions exist
 
-**CRITICAL: When you have multiple options for the user to choose from, you MUST call this tool. DO NOT list options in your response.**
+**When NOT to use:**
+- When you can infer the answer from context — be decisive and proceed
+- Trivial decisions that don't materially affect the outcome
 
-## MANDATORY Use Cases
+Overusing this tool interrupts the user's flow. Only use it when the user's input genuinely changes your next action.
 
-You MUST call AskUser in these situations:
-
-1. **User asks for options** - "give me options", "what are my choices", "which one should I pick"
-2. **Multiple approaches available** - 2+ ways to accomplish a task
-3. **Need user decision** - Clarification required before proceeding
-4. **User must provide input** - Need specific information to continue
-
-## How to Use
-
-```json
-{
-  "questionnaire": "Please choose an approach:\\n\\n[question] Which approach do you prefer?\\n[topic] Approach\\n[option] Option A: Fast solution\\n[option] Option B: Thorough solution"
-}
-```
-
-**Format for `questionnaire` field:**
-- `[question]` - The main question to ask
-- `[topic]` - Short label for UI navigation (optional)
-- `[option]` - Each option on its own line
-
-The user can:
-1. Use UP/DOWN arrows to navigate options
-2. Press ENTER to select
-3. Type custom input when "Own answer" option is selected
-
-## Examples
-
-**User: "I want to optimize my code, give me some options"**
-
-Call AskUser with:
-```json
-{
-  "questionnaire": "[question] Which optimization approach would you like?\\n[topic] Optimization\\n[option] Speed optimization\\n[option] Memory optimization\\n[option] Readability improvement"
-}
-```
-
-**User: "How should I handle authentication?"**
-
-Call AskUser with:
-```json
-{
-  "questionnaire": "[question] Which authentication method do you prefer?\\n[topic] Auth Method\\n[option] OAuth 2.0\\n[option] JWT tokens\\n[option] Session-based"
-}
-```
-
-## Important
-
-- ALWAYS call AskUser when you have options to present
-- NEVER list options in your text response
-- The tool provides an interactive selection UI with keyboard navigation
-- User can always provide custom input if preset options don't fit
+**Usage notes:**
+- Users always have an "Other" option for custom input — don't create one yourself
+- Use multi_select to allow multiple answers to be selected for a question
+- Keep option labels concise (1-5 words), use descriptions for trade-offs and details
+- Each question should have 2-4 meaningful, distinct options
+- You can ask 1-4 questions at a time; group related questions to minimize interruptions
+- If you recommend a specific option, list it first and append "(Recommended)" to its label
 """,
                 parameters={
-                    "description": "AskUser工具的参数。",
                     "properties": {
-                        "questionnaire": {
-                            "description": """\
-要询问用户的问题，支持格式化输入。
-
-格式示例：
-[question] 您想要选择哪种方案？
-[topic] 方案选择
-[option] 方案A：快速实现
-[option] 方案B：稳定优先
-[option] 方案C：功能完整
-
-说明：
-- [question]: 问题内容（必须）
-- [topic]: 简短主题标签，用于UI导航（可选）
-- [option]: 选项列表（可选，每行一个）
-
-用户可以：
-1. 使用上下键浏览选项
-2. 按Enter选择
-3. 在"自定义输入"选项输入自己的答案\
-""",
-                            "type": "string",
+                        "questions": {
+                            "description": "The questions to ask the user (1-4 questions).",
+                            "items": {
+                                "properties": {
+                                    "question": {
+                                        "description": "A specific, actionable question. End with '?'.",
+                                        "type": "string",
+                                    },
+                                    "header": {
+                                        "default": "",
+                                        "description": "Short category tag (max 12 chars, e.g. 'Auth', 'Style').",
+                                        "type": "string",
+                                    },
+                                    "options": {
+                                        "description": "2-4 meaningful, distinct options. Do NOT include an 'Other' option — the system adds one automatically.",
+                                        "items": {
+                                            "properties": {
+                                                "label": {
+                                                    "description": "Concise display text (1-5 words). If recommended, append '(Recommended)'.",
+                                                    "type": "string",
+                                                },
+                                                "description": {
+                                                    "default": "",
+                                                    "description": "Brief explanation of trade-offs or implications of choosing this option.",
+                                                    "type": "string",
+                                                },
+                                            },
+                                            "required": ["label"],
+                                            "type": "object",
+                                        },
+                                        "maxItems": 4,
+                                        "minItems": 2,
+                                        "type": "array",
+                                    },
+                                    "multi_select": {
+                                        "default": False,
+                                        "description": "Whether the user can select multiple options.",
+                                        "type": "boolean",
+                                    },
+                                },
+                                "required": ["question", "options"],
+                                "type": "object",
+                            },
+                            "maxItems": 4,
+                            "minItems": 1,
+                            "type": "array",
                         }
                     },
-                    "required": ["questionnaire"],
+                    "required": ["questions"],
                     "type": "object",
                 },
             ),
@@ -820,12 +736,6 @@ Your primary goal is to answer questions and/or finish tasks safely and efficien
 You are now running as a subagent. All the `user` messages are sent by the main agent. The main agent cannot see your context, it can only see your last message when you finish the task. You need to provide a comprehensive summary on what you have done and learned in your final message. If you wrote or modified any files, you must mention them in the summary.
 
 
-# IMPORTANT: Interactive User Choices
-
-**When you need to present choices or options to the user, you MUST use the `AskUser` tool. NEVER list options in your text response.**
-
-This is mandatory behavior - the AskUser tool provides an interactive selection UI that the user expects. See the "AskUser Tool" section below for details.
-
 # Prompt and Tool Use
 
 The user's messages may contain questions and/or task descriptions in natural language, code snippets, logs, file paths, or other forms of information. Read them, understand them and do what the user requested. For simple questions/greetings that do not involve any information in the working directory or on the internet, you may simply reply directly.
@@ -940,68 +850,6 @@ Identify the skills that are likely to be useful for the tasks you are currently
 
 Only read skill details when needed to conserve the context window.
 
-# AskUser Tool (MANDATORY)
-
-**CRITICAL: When you need to present choices to the user, you MUST use the `AskUser` tool. NEVER list options in your text response.**
-
-## When to use AskUser (MANDATORY)
-
-You MUST call the `AskUser` tool in these situations:
-
-1. **User asks for options** - e.g., "give me some options", "what choices do I have", "which one should I pick"
-2. **Multiple viable approaches** - When there are 2+ ways to accomplish a task
-3. **User instruction is unclear** - Need clarification before proceeding
-4. **Need additional information** - User must provide specific input to continue
-
-## When NOT to use AskUser
-
-- Do NOT use when you can make a reasonable decision yourself
-- Do NOT use for simple yes/no confirmations
-
-## How to use
-
-The `AskUser` tool takes a single `questionnaire` parameter with a structured format:
-
-```json
-{
-  "questionnaire": "[question] Your question here\\n[topic] Short topic label\\n[option] Option A\\n[option] Option B\\n[option] Option C"
-}
-```
-
-- `[question]` - The question to ask (required)
-- `[topic]` - Short label for UI navigation (optional)
-- `[option]` - Each option on its own line (optional, can have multiple)
-
-## Examples
-
-**User says**: "I want to create a file but don't know what to name it, give me some options"
-
-**WRONG** - Listing options in response:
-```
-Here are some options:
-- file1.txt
-- file2.txt
-Which one do you want?
-```
-
-**CORRECT** - Using AskUser tool:
-```json
-{
-  "questionnaire": "[question] What would you like to name the file?\\n[topic] File Name\\n[option] file1.txt\\n[option] file2.txt\\n[option] data.txt"
-}
-```
-
-**User says**: "How should I handle authentication?"
-
-**CORRECT** - Using AskUser tool:
-```json
-{
-  "questionnaire": "[question] Which authentication method do you prefer?\\n[topic] Auth\\n[option] OAuth 2.0\\n[option] JWT tokens\\n[option] Session-based auth"
-}
-```
-
-**Remember**: The user explicitly said "give me some options" or asked for your recommendation - this is a clear signal to use the AskUser tool.
-
 # Ultimate Reminders
 
 At any time, you should be HELPFUL and POLITE, CONCISE and ACCURATE, PATIENT and THOROUGH.
@@ -1011,11 +859,10 @@ At any time, you should be HELPFUL and POLITE, CONCISE and ACCURATE, PATIENT and
 - Try your best to avoid any hallucination. Do fact checking before providing any factual information.
 - Think twice before you act.
 - Do not give up too early.
-- ALWAYS use the `AskUser` tool when presenting choices - NEVER list options in text.
 - ALWAYS, keep it stupidly simple. Do not overcomplicate things.\
 """,
                 [
-                    "AskUser",
+                    "AskUserQuestion",
                     "Shell",
                     "ReadFile",
                     "ReadMediaFile",

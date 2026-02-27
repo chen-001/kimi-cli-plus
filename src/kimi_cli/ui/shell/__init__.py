@@ -75,6 +75,9 @@ class Shell:
             thinking=self.soul.thinking or False,
             agent_mode_slash_commands=list(self._available_slash_commands.values()),
             shell_mode_slash_commands=shell_mode_registry.list_commands(),
+            editor_command_provider=lambda: (
+                self.soul.runtime.config.default_editor if isinstance(self.soul, KimiSoul) else ""
+            ),
         ) as prompt_session:
             try:
                 while True:
@@ -110,6 +113,7 @@ class Shell:
                         continue
 
                     await self.run_soul_command(user_input.content)
+                    console.print()
             finally:
                 ensure_tty_sane()
 
@@ -256,7 +260,7 @@ class Shell:
             elif isinstance(e, APIStatusError) and e.status_code == 402:
                 console.print("[red]Membership expired, please renew your plan[/red]")
             elif isinstance(e, APIStatusError) and e.status_code == 403:
-                console.print(f"[red]Permission denied by provider: {e}[/red]")
+                console.print("[red]Quota exceeded, please upgrade your plan or retry later[/red]")
             else:
                 console.print(f"[red]LLM provider error: {e}[/red]")
         except MaxStepsReached as e:
@@ -279,7 +283,7 @@ class Shell:
         if result == UpdateResult.UPDATE_AVAILABLE:
             while True:
                 toast(
-                    "new version found, run `uv tool upgrade kimi-cli-plus` to upgrade",
+                    "new version found, run `uv tool upgrade kimi-cli` to upgrade",
                     topic="update",
                     duration=30.0,
                 )
@@ -351,7 +355,7 @@ def _print_welcome_info(name: str, info_items: list[WelcomeInfoItem]) -> None:
             rows.append(
                 Text.from_markup(
                     f"\n[yellow]New version available: {latest_version}. "
-                    "Please run `uv tool upgrade kimi-cli-plus` to upgrade.[/yellow]"
+                    "Please run `uv tool upgrade kimi-cli` to upgrade.[/yellow]"
                 )
             )
 

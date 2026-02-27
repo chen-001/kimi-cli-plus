@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import AsyncIterator
 from typing import Protocol
 
@@ -76,12 +75,6 @@ async def mock_http_server() -> AsyncIterator[MockServerFactory]:
             await runner.cleanup()
 
 
-import os
-
-
-@pytest.mark.skipif(
-    os.environ.get("CI") == "true", reason="Network tests are flaky in CI environment"
-)
 async def test_fetch_url_basic_functionality(fetch_url_tool: FetchURL) -> None:
     """Test basic WebFetch functionality."""
     # Test with a reliable website that has content
@@ -118,9 +111,6 @@ async def test_fetch_url_invalid_url(fetch_url_tool: FetchURL) -> None:
     assert "Failed to fetch URL due to network error:" in result.message
 
 
-@pytest.mark.skipif(
-    os.environ.get("CI") == "true", reason="Network tests are flaky in CI environment"
-)
 async def test_fetch_url_404_url(fetch_url_tool: FetchURL) -> None:
     """Test fetching from a URL that returns 404."""
     result = await fetch_url_tool(
@@ -156,9 +146,6 @@ async def test_fetch_url_empty_url(fetch_url_tool: FetchURL) -> None:
     )
 
 
-@pytest.mark.skipif(
-    os.environ.get("CI") == "true", reason="Network tests are flaky in CI environment"
-)
 async def test_fetch_url_javascript_driven_site(fetch_url_tool: FetchURL) -> None:
     """Test fetching from a JavaScript-driven site that may not work with trafilatura."""
     result = await fetch_url_tool(Params(url="https://www.moonshot.ai/"))

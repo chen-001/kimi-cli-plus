@@ -3,7 +3,7 @@
 Slash commands are built-in commands for Kimi Code CLI, used to control sessions, configuration, and debugging. Enter a command starting with `/` in the input box to trigger.
 
 ::: tip Shell mode
-Some slash commands are also available in shell mode, including `/help`, `/exit`, `/version`, `/changelog`, and `/feedback`.
+Some slash commands are also available in shell mode, including `/help`, `/exit`, `/version`, `/editor`, `/changelog`, and `/feedback`.
 :::
 
 ## Help and info
@@ -61,6 +61,10 @@ After selection, Kimi Code CLI will automatically update the configuration file 
 This command is only available when using the default configuration file. If a configuration was specified via `--config` or `--config-file`, this command cannot be used.
 :::
 
+### `/editor`
+
+Set the default external editor. When called without arguments, displays an interactive selection interface; you can also specify the editor command directly, e.g., `/editor vim`. After configuration, pressing `Ctrl-O` will open this editor to edit the current input content. See [Keyboard shortcuts](./keyboard.md#external-editor) for details.
+
 ### `/reload`
 
 Reload the configuration file without exiting Kimi Code CLI.
@@ -93,6 +97,10 @@ Output includes:
 - List of tools provided by each server
 
 ## Session management
+
+### `/new`
+
+Create a new session and switch to it immediately, without exiting Kimi Code CLI. If the current session has no content, the empty session directory is automatically cleaned up.
 
 ### `/sessions`
 
@@ -147,6 +155,21 @@ Flow skills can also be invoked via `/skill:<name>`, which loads the content as 
 
 See [Agent Skills](../customization/skills.md#flow-skills) for details.
 
+## Workspace
+
+### `/add-dir`
+
+Add an additional directory to the workspace scope. Once added, the directory is accessible to all file tools (`ReadFile`, `WriteFile`, `Glob`, `Grep`, `StrReplaceFile`, etc.) and its directory listing is shown in the system prompt. Added directories are persisted with the session state and automatically restored when resuming.
+
+Usage:
+
+- `/add-dir <path>`: Add the specified directory to the workspace
+- `/add-dir`: Without arguments, list already added additional directories
+
+::: tip
+Directories already within the working directory do not need to be added, as they are already accessible. You can also add directories at startup via the `--add-dir` option. See [`kimi` command](./kimi-command.md#working-directory) for details.
+:::
+
 ## Others
 
 ### `/init`
@@ -162,6 +185,10 @@ Toggle YOLO mode. When enabled, all operations are automatically approved and a 
 ::: warning Note
 YOLO mode skips all confirmations. Make sure you understand the potential risks.
 :::
+
+### `/web`
+
+Switch to Web UI. Kimi Code CLI will start a Web UI server and open the current session in your browser, allowing you to continue the conversation in the Web UI. See [Web UI](./kimi-web.md) for details.
 
 ## Command completion
 

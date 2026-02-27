@@ -141,14 +141,6 @@ class MCPConfig(BaseModel):
     )
 
 
-class PluginConfig(BaseModel):
-    """Plugin configuration."""
-
-    enable_diff_view: bool = Field(
-        default=True, description="Enable diff view after file modifications"
-    )
-
-
 class Config(BaseModel):
     """Main configuration structure."""
 
@@ -157,9 +149,18 @@ class Config(BaseModel):
         description="Whether the config was loaded from the default location",
         exclude=True,
     )
+    source_file: Path | None = Field(
+        default=None,
+        description="Path to the loaded config file. None when loaded from --config text.",
+        exclude=True,
+    )
     default_model: str = Field(default="", description="Default model to use")
     default_thinking: bool = Field(default=False, description="Default thinking mode")
     default_yolo: bool = Field(default=False, description="Default yolo (auto-approve) mode")
+    default_editor: str = Field(
+        default="",
+        description="Default external editor command (e.g. 'vim', 'code --wait')",
+    )
     models: dict[str, LLMModel] = Field(default_factory=dict, description="List of LLM models")
     providers: dict[str, LLMProvider] = Field(
         default_factory=dict, description="List of LLM providers"
@@ -167,9 +168,6 @@ class Config(BaseModel):
     loop_control: LoopControl = Field(default_factory=LoopControl, description="Agent loop control")
     services: Services = Field(default_factory=Services, description="Services configuration")
     mcp: MCPConfig = Field(default_factory=MCPConfig, description="MCP configuration")
-    plugin_config: PluginConfig = Field(
-        default_factory=PluginConfig, description="Plugin configuration"
-    )
 
     @model_validator(mode="after")
     def validate_model(self) -> Self:
@@ -210,12 +208,11 @@ def load_config(config_file: Path | None = None) -> Config:
     Raises:
         ConfigError: If the configuration file is invalid.
     """
-    default_config_file = get_config_file()
+    default_config_file = get_config_file().expanduser().resolve(strict=False)
     if config_file is None:
         config_file = default_config_file
-    is_default_config_file = config_file.expanduser().resolve(
-        strict=False
-    ) == default_config_file.expanduser().resolve(strict=False)
+    config_file = config_file.expanduser().resolve(strict=False)
+    is_default_config_file = config_file == default_config_file
     logger.debug("Loading config from file: {file}", file=config_file)
 
     # If the user hasn't provided an explicit config path, migrate legacy JSON config once.
@@ -227,6 +224,7 @@ def load_config(config_file: Path | None = None) -> Config:
         logger.debug("No config file found, creating default config: {config}", config=config)
         save_config(config, config_file)
         config.is_from_default_location = is_default_config_file
+        config.source_file = config_file
         return config
 
     try:
@@ -243,6 +241,7 @@ def load_config(config_file: Path | None = None) -> Config:
     except ValidationError as e:
         raise ConfigError(f"Invalid configuration file {config_file}: {e}") from e
     config.is_from_default_location = is_default_config_file
+    config.source_file = config_file
     return config
 
 
@@ -282,6 +281,7 @@ def load_config_from_string(config_string: str) -> Config:
     except ValidationError as e:
         raise ConfigError(f"Invalid configuration text: {e}") from e
     config.is_from_default_location = False
+    config.source_file = None
     return config
 
 

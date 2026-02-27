@@ -11,8 +11,8 @@ class DiffDisplayBlock(DisplayBlock):
     path: str
     old_text: str
     new_text: str
-    old_start_line: int = 1  # 旧文件起始行号（1-based）
-    new_start_line: int = 1  # 新文件起始行号（1-based）
+    old_start_line: int = 1
+    new_start_line: int = 1
 
 
 class TodoDisplayItem(BaseModel):

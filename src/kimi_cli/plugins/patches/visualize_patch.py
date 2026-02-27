@@ -13,18 +13,6 @@ from __future__ import annotations
 from kimi_cli.plugins.core import PatchBase
 
 
-def _is_diff_view_enabled() -> bool:
-    """检查 diff view 是否启用。"""
-    # 使用运行时状态模块，支持快捷键实时切换
-    try:
-        from kimi_cli.ui.shell.diff_view_state import is_diff_view_enabled as get_state
-
-        return get_state()
-    except Exception:
-        # 默认启用
-        return True
-
-
 class VisualizePatch(PatchBase):
     """可视化层的补丁。"""
 
@@ -51,6 +39,15 @@ class VisualizePatch(PatchBase):
         from kimi_cli.tools.display import DiffDisplayBlock
         from kimi_cli.ui.shell.console import console
         from kimi_cli.ui.shell.visualize import _ToolCallBlock
+
+        def _is_diff_view_enabled() -> bool:
+            """检查 diff view 是否启用。"""
+            try:
+                from kimi_cli.ui.shell.diff_view_state import is_diff_view_enabled as get_state
+
+                return get_state()
+            except Exception:
+                return True
 
         # 备份原始方法
         original_finish = _ToolCallBlock.finish

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, ClassVar, Literal, TypeGuard, cast
+from typing import Any, Literal, TypeGuard, cast
 
 from kosong.chat_provider import TokenUsage
 from kosong.message import (
@@ -165,26 +165,14 @@ class ApprovalRequest(BaseModel):
     description: str
     display: list[DisplayBlock] = Field(default_factory=list[DisplayBlock])
     """Defaults to an empty list for backwards-compatible wire.jsonl loading."""
-    options: list[str] | None = None
-    """For inquiry requests, list of options for user to choose from."""
 
     # Note that the above fields are just a copy of `kimi_cli.soul.approval.Request`, but
     # we cannot directly use that class here because we want to avoid dependency from Wire
     # to Soul.
 
-    # Inquiry actions that should show interactive UI instead of approval buttons
-    INQUIRY_ACTIONS: ClassVar[set[str]] = {"ask_user_inquiry"}
-
-    @property
-    def is_inquiry(self) -> bool:
-        """Whether this is an inquiry request (user choice/input) rather than approval."""
-        return self.action in self.INQUIRY_ACTIONS
-
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._future: asyncio.Future[ApprovalResponse.Kind] | None = None
-        self._user_response: str | None = None
-        """For inquiry requests, stores the user's selected option or input."""
 
     def _get_future(self) -> asyncio.Future[ApprovalResponse.Kind]:
         if self._future is None:
@@ -200,77 +188,105 @@ class ApprovalRequest(BaseModel):
         """
         return await self._get_future()
 
-    def resolve(self, response: ApprovalResponse.Kind, *, user_response: str | None = None) -> None:
+    def resolve(self, response: ApprovalResponse.Kind) -> None:
         """
         Resolve the approval request with the given response.
         This will cause the `wait()` method to return the response.
-
-        Args:
-            response: The approval response (approve, approve_for_session, or reject).
-            user_response: For inquiry requests, the user's selected option or input.
         """
         future = self._get_future()
         if not future.done():
             future.set_result(response)
-        if user_response is not None:
-            self._user_response = user_response
 
     @property
     def resolved(self) -> bool:
         """Whether the request is resolved."""
         return self._future is not None and self._future.done()
 
-    @property
-    def user_response(self) -> str | None:
-        """For inquiry requests, returns the user's selected option or input."""
-        return self._user_response
+
+class QuestionOption(BaseModel):
+    """A single option for a question."""
+
+    label: str
+    """The display text for this option."""
+    description: str = ""
+    """Explanation of what this option means."""
 
 
-class InquiryRequest(BaseModel):
+class QuestionItem(BaseModel):
+    """A single question to ask the user."""
+
+    question: str
+    """The complete question text."""
+    header: str = ""
+    """Short label displayed as a tag (max 12 chars)."""
+    options: list[QuestionOption]
+    """The available choices for this question (2-4 options)."""
+    multi_select: bool = False
+    """Whether multiple options can be selected."""
+
+
+class QuestionResponse(BaseModel):
+    """Response to a question request."""
+
+    request_id: str
+    """The ID of the resolved question request."""
+    answers: dict[str, str]
+    """Mapping from question text to selected option label(s). Multi-select answers are
+    comma-separated."""
+
+
+class QuestionNotSupported(Exception):
+    """Raised when the connected client does not support interactive questions."""
+
+
+class QuestionRequest(BaseModel):
     """
-    A request for user input/choice during tool execution.
-    Unlike ApprovalRequest which asks for approval, this asks for user input or selection.
+    A request to ask the user structured questions during execution.
     """
 
     id: str
+    """The unique request ID."""
     tool_call_id: str
-    sender: str
-    question: str
-    options: list[str] | None = None
-    """List of options for user to choose from. If None, free-form input is expected."""
-    allow_custom: bool = False
-    """Whether to allow custom input when options are provided."""
-    display: list[DisplayBlock] = Field(default_factory=list[DisplayBlock])
+    """The ID of the tool call that initiated this question."""
+    questions: list[QuestionItem]
+    """The questions to ask the user (1-4 questions)."""
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self._future: asyncio.Future[str] | None = None
+        self._future: asyncio.Future[dict[str, str]] | None = None
 
-    def _get_future(self) -> asyncio.Future[str]:
+    def _get_future(self) -> asyncio.Future[dict[str, str]]:
         if self._future is None:
             self._future = asyncio.get_event_loop().create_future()
         return self._future
 
-    async def wait(self) -> str:
+    async def wait(self) -> dict[str, str]:
         """
-        Wait for user response.
+        Wait for the question to be answered.
 
         Returns:
-            str: The user's response (selected option or input text).
+            dict[str, str]: Mapping from question text to answer.
         """
         return await self._get_future()
 
-    def resolve(self, response: str) -> None:
+    def resolve(self, answers: dict[str, str]) -> None:
         """
-        Resolve the inquiry with the user's response.
+        Resolve the question request with the given answers.
+        This will cause the `wait()` method to return the answers.
         """
         future = self._get_future()
         if not future.done():
-            future.set_result(response)
+            future.set_result(answers)
+
+    def set_exception(self, exc: BaseException) -> None:
+        """Resolve the question request with an exception."""
+        future = self._get_future()
+        if not future.done():
+            future.set_exception(exc)
 
     @property
     def resolved(self) -> bool:
-        """Whether the inquiry is resolved."""
+        """Whether the question request is resolved."""
         return self._future is not None and self._future.done()
 
 
@@ -345,7 +361,7 @@ type Event = (
 """Any event, including control flow and content/tooling events."""
 
 
-type Request = ApprovalRequest | InquiryRequest | ToolCallRequest
+type Request = ApprovalRequest | ToolCallRequest | QuestionRequest
 """Any request. Request is a message that expects a response."""
 
 type WireMessage = Event | Request
@@ -425,6 +441,11 @@ __all__ = [
     "SubagentEvent",
     "ApprovalRequest",
     "ToolCallRequest",
+    "QuestionOption",
+    "QuestionItem",
+    "QuestionResponse",
+    "QuestionRequest",
+    "QuestionNotSupported",
     # helpers
     "WireMessageEnvelope",
     # `StatusUpdate`-related

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
@@ -11,7 +12,7 @@ from kimi_cli.utils.logging import logger
 from kimi_cli.wire.types import DisplayBlock
 
 
-@dataclass(slots=True, kw_only=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class Request:
     id: str
     tool_call_id: str
@@ -19,25 +20,29 @@ class Request:
     action: str
     description: str
     display: list[DisplayBlock]
-    options: list[str] | None = None
-    user_response: str | None = None
-    """For inquiry requests, stores the user's selected option or input."""
 
 
 type Response = Literal["approve", "approve_for_session", "reject"]
 
 
 class ApprovalState:
-    def __init__(self, yolo: bool = False):
+    def __init__(
+        self,
+        yolo: bool = False,
+        auto_approve_actions: set[str] | None = None,
+        on_change: Callable[[], None] | None = None,
+    ):
         self.yolo = yolo
-        self.auto_approve_actions: set[str] = set()  # TODO: persist across sessions
+        self.auto_approve_actions: set[str] = auto_approve_actions or set()
         """Set of action names that should automatically be approved."""
+        self._on_change = on_change
+
+    def notify_change(self) -> None:
+        if self._on_change is not None:
+            self._on_change()
 
 
 class Approval:
-    # Inquiry actions are not affected by YOLO mode
-    INQUIRY_ACTIONS = {"ask_user_inquiry"}
-
     def __init__(self, yolo: bool = False, *, state: ApprovalState | None = None):
         self._request_queue = Queue[Request]()
         self._requests: dict[str, tuple[Request, asyncio.Future[bool]]] = {}
@@ -49,6 +54,7 @@ class Approval:
 
     def set_yolo(self, yolo: bool) -> None:
         self._state.yolo = yolo
+        self._state.notify_change()
 
     def is_yolo(self) -> bool:
         return self._state.yolo
@@ -59,7 +65,6 @@ class Approval:
         action: str,
         description: str,
         display: list[DisplayBlock] | None = None,
-        options: list[str] | None = None,
     ) -> bool:
         """
         Request approval for the given action. Intended to be called by tools.
@@ -69,8 +74,6 @@ class Approval:
             action (str): The action to request approval for.
                 This is used to identify the action for auto-approval.
             description (str): The description of the action. This is used to display to the user.
-            display: Optional display blocks for the request.
-            options: For inquiry requests, list of options for user to choose from.
 
         Returns:
             bool: True if the action is approved, False otherwise.
@@ -89,11 +92,7 @@ class Approval:
             action=action,
             description=description,
         )
-
-        # Inquiry actions are not affected by YOLO mode
-        is_inquiry = action in self.INQUIRY_ACTIONS
-
-        if self._state.yolo and not is_inquiry:
+        if self._state.yolo:
             return True
 
         if action in self._state.auto_approve_actions:
@@ -106,25 +105,11 @@ class Approval:
             action=action,
             description=description,
             display=display or [],
-            options=options,
         )
         approved_future = asyncio.Future[bool]()
         self._request_queue.put_nowait(request)
         self._requests[request.id] = (request, approved_future)
-        self._last_request_id = request.id
         return await approved_future
-
-    def get_user_response(self) -> str | None:
-        """
-        Get the user's response for the last inquiry request.
-        Should be called after request() returns True for an inquiry.
-
-        Returns:
-            str | None: The user's selected option or input, or None if not available.
-        """
-        if not hasattr(self, "_last_user_response"):
-            return None
-        return self._last_user_response
 
     async def fetch_request(self) -> Request:
         """
@@ -142,16 +127,13 @@ class Approval:
 
             return request
 
-    def resolve_request(
-        self, request_id: str, response: Response, *, user_response: str | None = None
-    ) -> None:
+    def resolve_request(self, request_id: str, response: Response) -> None:
         """
         Resolve an approval request with the given response. Intended to be called by the soul.
 
         Args:
             request_id (str): The ID of the request to resolve.
             response (Response): The response to the request.
-            user_response: For inquiry requests, the user's selected option or input.
 
         Raises:
             KeyError: If there is no pending request with the given ID.
@@ -160,11 +142,6 @@ class Approval:
         if request_tuple is None:
             raise KeyError(f"No pending request with ID {request_id}")
         request, future = request_tuple
-
-        # Store user response for inquiry requests
-        if user_response is not None:
-            request.user_response = user_response
-            self._last_user_response = user_response
 
         logger.debug(
             "Received approval response for request {request_id}: {response}",
@@ -176,6 +153,7 @@ class Approval:
                 future.set_result(True)
             case "approve_for_session":
                 self._state.auto_approve_actions.add(request.action)
+                self._state.notify_change()
                 future.set_result(True)
             case "reject":
                 future.set_result(False)
